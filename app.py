@@ -17,7 +17,6 @@ def home():
 
 @app.route("/autocomplete", methods=["GET"])
 def autocomplete():
-    """Return player names for autocomplete based on user input."""
     query = request.args.get("query", "").lower()
     if not query:
         return jsonify([])
@@ -27,7 +26,6 @@ def autocomplete():
 
 @app.route("/set_user_team", methods=["POST"])
 def set_user_team():
-    """Store the user's team and update salaries in the dataset."""
     data = request.json
     user_team = data.get("user_team", [])
     extra_salary = float(data.get("extra_salary", 0))
@@ -44,15 +42,17 @@ def set_user_team():
 
     session["updated_players_df"] = updated_players_df.to_dict(orient="records")
 
-    return jsonify({"message": "User team saved successfully."})
+    return jsonify({"message": "✅ User team saved successfully!"})
 
 @app.route("/compute_result", methods=["POST"])
 def compute_result():
-    """Find the best team or best substitutions based on user choice."""
     data = request.json
     option = data.get("option")
     sub_type = data.get("sub_type", "weekly")
     salary_cap = float(data.get("salary_cap", 100))
+
+    # Debugging: Print session data to see if it exists
+    print("Session Data:", session)
 
     user_team_data = session.get("user_team")
     extra_salary = float(session.get("extra_salary", 0))
@@ -93,6 +93,7 @@ def compute_result():
         })
 
     return jsonify({"error": "⚠️ Invalid option selected."})
+
 
 if __name__ == "__main__":
     app.run(debug=True)

@@ -9,11 +9,6 @@
         document.addEventListener("DOMContentLoaded", function() {
             generatePlayerInputs();
         });
-        document.querySelectorAll('input[name="option"]').forEach(option => {
-            option.addEventListener("change", function () {
-                document.getElementById("sub_options").style.display = this.value === "best_substitutions" ? "block" : "none";
-            });
-        });
 
         function generatePlayerInputs() {
             let container = document.getElementById("team_inputs");
@@ -83,12 +78,17 @@
             document.getElementById("next_step").style.display = "block";
         }
 
+        document.querySelectorAll('input[name="option"]').forEach(option => {
+            option.addEventListener("change", function () {
+                document.getElementById("sub_options").style.display = this.value === "best_substitutions" ? "block" : "none";
+            });
+        });
+
         async function computeResult() {
             let option = document.querySelector('input[name="option"]:checked').value;
             let subType = document.querySelector('input[name="sub_type"]:checked')?.value || "";
             let salaryCap = document.getElementById("salary_cap").value;
 
-            // If Best Team is chosen, ensure Salary Cap is provided
             if (option === "best_team" && (!salaryCap || isNaN(salaryCap))) {
                 alert("⚠️ Please enter a valid Salary Cap for Best Team.");
                 return;
