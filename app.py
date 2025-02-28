@@ -3,8 +3,7 @@ import pandas as pd
 from optimizer import FantasyOptimizer
 from best_team_finder import BestTeamFinder
 
-app = Flask(__name__)
-
+app = Flask(__name__, template_folder="templates")
 # Define file paths (update these paths if needed)
 FULL_PLAYERS_CSV = "data/top_update_players.csv"
 BEST_FILTER_CSV = "data/top_players.csv"
@@ -16,9 +15,7 @@ full_players_df = pd.read_csv(FULL_PLAYERS_CSV)
 
 @app.route("/")
 def home():
-    """Render the homepage with player selection."""
-    return render_template("index.html")
-
+    return render_template("index.html")  # This will load templates/index.html
 
 @app.route("/autocomplete", methods=["GET"])
 def autocomplete():
