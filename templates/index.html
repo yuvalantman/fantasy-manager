@@ -23,6 +23,27 @@
             }
         }
 
+        async function autocompletePlayer(input) {
+            let query = input.value.trim().toLowerCase();
+            if (query.length < 2) return;
+
+            let response = await fetch(`/autocomplete?query=${query}`);
+            let players = await response.json();
+
+            let dropdown = input.nextElementSibling;
+            dropdown.innerHTML = "";
+            players.forEach(player => {
+                let option = document.createElement("div");
+                option.className = "autocomplete-item";
+                option.innerText = player;
+                option.onclick = function() {
+                    input.value = player;
+                    dropdown.innerHTML = "";
+                };
+                dropdown.appendChild(option);
+            });
+        }
+
         async function setUserTeam() {
             let extraSalary = document.getElementById("extra_salary").value;
             let playerInputs = document.querySelectorAll(".player-input");
@@ -66,13 +87,13 @@
             let resultDiv = document.getElementById("result");
             resultDiv.innerHTML = "<h3>Results:</h3>";
 
-            if (option === "best_team" && data.best_team) {
+            if (data.best_team) {
                 data.best_team.forEach(player => {
                     resultDiv.innerHTML += `<p>${player.Player} - ${player.team} ($${player.$})</p>`;
                 });
                 resultDiv.innerHTML += `<p><strong>Total Form:</strong> ${data.total_form}</p>`;
                 resultDiv.innerHTML += `<p><strong>Total Price:</strong> $${data.total_price}</p>`;
-            } else if (option === "best_substitutions") {
+            } else if (data.new_team) {
                 resultDiv.innerHTML += `<p><strong>New Team Form:</strong> ${data.new_form}</p>`;
                 resultDiv.innerHTML += `<p><strong>Players Out:</strong> ${data.substitutions_out.join(", ")}</p>`;
                 resultDiv.innerHTML += `<p><strong>Players In:</strong> ${data.substitutions_in.join(", ")}</p>`;
@@ -85,18 +106,12 @@
 <body>
     <h1>Fantasy Manager</h1>
 
-    <h2>Enter Your Team</h2>
     <div id="team_inputs"></div>
     <label>Extra Salary: </label>
     <input type="number" id="extra_salary" value="0">
     <button onclick="setUserTeam()">Save Team</button>
 
     <div id="next_step" style="display: none;">
-        <h2>Choose an Option</h2>
-        <label><input type="radio" name="option" value="best_team" checked> Best Team</label>
-        <label><input type="radio" name="option" value="best_substitutions"> Best Substitutions</label>
-        <label><input type="radio" name="sub_type" value="weekly"> Weekly</label>
-        <label><input type="radio" name="sub_type" value="total"> Total</label>
         <button onclick="computeResult()">Compute</button>
     </div>
 

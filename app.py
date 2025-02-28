@@ -7,58 +7,71 @@ app = Flask(__name__, template_folder="templates")
 app.secret_key = "super_secret_key"  # Needed for session storage
 
 FULL_PLAYERS_CSV = "data/top_update_players.csv"
-BEST_FILTER_CSV = "data/top_players.csv"
 SCHEDULE_CSV = "data/GW19Schedule.csv"
 
 full_players_df = pd.read_csv(FULL_PLAYERS_CSV)
+
 
 @app.route("/")
 def home():
     return render_template("index.html")
 
+
 @app.route("/autocomplete", methods=["GET"])
 def autocomplete():
     """Return player names for autocomplete based on user input."""
     query = request.args.get("query", "").lower()
+    if not query:
+        return jsonify([])
+
     suggestions = full_players_df[full_players_df["Player"].str.lower().str.contains(query, na=False)]
     return jsonify(suggestions["Player"].tolist())
 
+
 @app.route("/set_user_team", methods=["POST"])
 def set_user_team():
-    """Store user's team and update salaries in the dataset."""
+    """Store the user's team and update salaries in the dataset."""
     data = request.json
     user_team = data.get("user_team", [])
     extra_salary = float(data.get("extra_salary", 0))
 
+    if len(user_team) != 10:
+        return jsonify({"error": "Please enter exactly 10 players."}), 400
+
     session["user_team"] = user_team
     session["extra_salary"] = extra_salary
 
-    # Load full dataset & update salaries for players in the user's team
+    # Update salaries for players in the user's team
     updated_players_df = full_players_df.copy()
     for player in user_team:
         updated_players_df.loc[updated_players_df["Player"] == player["Player"], "$"] = player["$"]
 
     session["updated_players_df"] = updated_players_df.to_dict(orient="records")
 
-    return jsonify({"message": "User team saved and salaries updated successfully."})
+    return jsonify({"message": "User team saved successfully."})
+
 
 @app.route("/compute_result", methods=["POST"])
 def compute_result():
-    """Find best team or best substitutions based on user choice."""
+    """Find the best team or best substitutions based on user choice."""
     data = request.json
-    option = data.get("option")  # "best_team" or "best_substitutions"
-    sub_type = data.get("sub_type", "weekly")  # "weekly" or "total"
+    option = data.get("option")
+    sub_type = data.get("sub_type", "weekly")
 
-    user_team = pd.DataFrame(session.get("user_team", []))
+    user_team_data = session.get("user_team", [])
     extra_salary = float(session.get("extra_salary", 0))
-    updated_players_df = pd.DataFrame(session.get("updated_players_df", []))
+    updated_players_data = session.get("updated_players_df", [])
 
-    if user_team.empty or updated_players_df.empty:
-        return jsonify({"error": "No user team found. Please enter your team first."})
+    if not user_team_data or not updated_players_data:
+        return jsonify({"error": "User team is missing. Please enter your team first."}), 400
+
+    user_team = pd.DataFrame(user_team_data)
+    updated_players_df = pd.DataFrame(updated_players_data)
 
     if option == "best_team":
         team_finder = BestTeamFinder(updated_players_df, 100)
         best_team = team_finder.find_best_team()
+
         return jsonify({
             "best_team": best_team.to_dict(orient="records"),
             "total_form": best_team["Form"].sum(),
@@ -67,6 +80,7 @@ def compute_result():
 
     elif option == "best_substitutions":
         optimizer = FantasyOptimizer(user_team, updated_players_df, SCHEDULE_CSV)
+
         if sub_type == "weekly":
             best_team, new_form, _, best_out, best_in = optimizer.find_best_weekly_substitutions(extra_salary)
         else:
@@ -80,6 +94,7 @@ def compute_result():
         })
 
     return jsonify({"error": "Invalid option selected."})
+
 
 if __name__ == "__main__":
     app.run(debug=True)
