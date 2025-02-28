@@ -6,19 +6,15 @@ from best_team_finder import BestTeamFinder
 app = Flask(__name__, template_folder="templates")
 app.secret_key = "super_secret_key"  # Needed for session storage
 
-# Define file paths
 FULL_PLAYERS_CSV = "data/top_update_players.csv"
 BEST_FILTER_CSV = "data/top_players.csv"
 SCHEDULE_CSV = "data/GW19Schedule.csv"
 
-# Load player dataset for autocomplete
 full_players_df = pd.read_csv(FULL_PLAYERS_CSV)
-
 
 @app.route("/")
 def home():
     return render_template("index.html")
-
 
 @app.route("/autocomplete", methods=["GET"])
 def autocomplete():
@@ -27,45 +23,63 @@ def autocomplete():
     suggestions = full_players_df[full_players_df["Player"].str.lower().str.contains(query, na=False)]
     return jsonify(suggestions["Player"].tolist())
 
-
 @app.route("/set_user_team", methods=["POST"])
 def set_user_team():
-    """Store the user's team and extra salary in session storage."""
+    """Store user's team and update salaries in the dataset."""
     data = request.json
-    session["user_team"] = data.get("user_team", [])
-    session["extra_salary"] = float(data.get("extra_salary", 0))
-    
-    return jsonify({"message": "User team saved successfully."})
+    user_team = data.get("user_team", [])
+    extra_salary = float(data.get("extra_salary", 0))
 
+    session["user_team"] = user_team
+    session["extra_salary"] = extra_salary
 
-@app.route("/find_best_substitutions", methods=["POST"])
-def find_best_substitutions():
-    """Find the best substitutions using stored user team."""
-    sub_type = request.json.get("sub_type", "weekly")
+    # Load full dataset & update salaries for players in the user's team
+    updated_players_df = full_players_df.copy()
+    for player in user_team:
+        updated_players_df.loc[updated_players_df["Player"] == player["Player"], "$"] = player["$"]
 
-    # Retrieve stored team and salary
-    user_team_data = session.get("user_team", [])
+    session["updated_players_df"] = updated_players_df.to_dict(orient="records")
+
+    return jsonify({"message": "User team saved and salaries updated successfully."})
+
+@app.route("/compute_result", methods=["POST"])
+def compute_result():
+    """Find best team or best substitutions based on user choice."""
+    data = request.json
+    option = data.get("option")  # "best_team" or "best_substitutions"
+    sub_type = data.get("sub_type", "weekly")  # "weekly" or "total"
+
+    user_team = pd.DataFrame(session.get("user_team", []))
     extra_salary = float(session.get("extra_salary", 0))
+    updated_players_df = pd.DataFrame(session.get("updated_players_df", []))
 
-    if not user_team_data:
+    if user_team.empty or updated_players_df.empty:
         return jsonify({"error": "No user team found. Please enter your team first."})
 
-    user_team_df = pd.DataFrame(user_team_data)
+    if option == "best_team":
+        team_finder = BestTeamFinder(updated_players_df, 100)
+        best_team = team_finder.find_best_team()
+        return jsonify({
+            "best_team": best_team.to_dict(orient="records"),
+            "total_form": best_team["Form"].sum(),
+            "total_price": best_team["$"].sum()
+        })
 
-    optimizer = FantasyOptimizer(user_team_df, FULL_PLAYERS_CSV, SCHEDULE_CSV)
+    elif option == "best_substitutions":
+        optimizer = FantasyOptimizer(user_team, updated_players_df, SCHEDULE_CSV)
+        if sub_type == "weekly":
+            best_team, new_form, _, best_out, best_in = optimizer.find_best_weekly_substitutions(extra_salary)
+        else:
+            best_team, new_form, _, best_out, best_in = optimizer.find_best_total_substitutions(extra_salary)
 
-    if sub_type == "weekly":
-        best_team, new_form, _, best_out, best_in = optimizer.find_best_weekly_substitutions(extra_salary)
-    else:
-        best_team, new_form, _, best_out, best_in = optimizer.find_best_total_substitutions(extra_salary)
+        return jsonify({
+            "new_team": best_team.to_dict(orient="records"),
+            "new_form": new_form,
+            "substitutions_out": best_out,
+            "substitutions_in": best_in
+        })
 
-    return jsonify({
-        "new_team": best_team.to_dict(orient="records"),
-        "new_form": new_form,
-        "substitutions_out": best_out,
-        "substitutions_in": best_in
-    })
-
+    return jsonify({"error": "Invalid option selected."})
 
 if __name__ == "__main__":
     app.run(debug=True)
