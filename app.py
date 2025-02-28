@@ -1,10 +1,17 @@
 from flask import Flask, render_template, request, jsonify, session
+from flask_session import Session  # Import Flask-Session
 import pandas as pd
+import json
 from optimizer import FantasyOptimizer
 from best_team_finder import BestTeamFinder
 
 app = Flask(__name__, template_folder="templates", static_folder="templates/static")
 app.secret_key = "super_secret_key"
+
+# Store session on the server instead of cookies
+app.config["SESSION_PERMANENT"] = False
+app.config["SESSION_TYPE"] = "filesystem"
+Session(app)  # Initialize server-side session
 
 FULL_PLAYERS_CSV = "data/top_update_players.csv"
 SCHEDULE_CSV = "data/GW19Schedule.csv"
@@ -26,25 +33,49 @@ def autocomplete():
 
 @app.route("/set_user_team", methods=["POST"])
 def set_user_team():
-    data = request.json
+    data = request.get_json()
     user_team = data.get("user_team", [])
     extra_salary = float(data.get("extra_salary", 0))
 
-    if len(user_team) != 10:
-        return jsonify({"error": "⚠️ Please enter exactly 10 players."}), 400
+    # Retrieve the session data
+    updated_players_json = session.get("updated_players_df", "[]")
 
+    # Only deserialize if it's a string
+    if isinstance(updated_players_json, str):
+        updated_players_df = json.loads(updated_players_json)
+    else:
+        updated_players_df = updated_players_json  # Already a list
+
+    if not isinstance(updated_players_df, list):
+        print(f"❌ ERROR: updated_players_df is not a list but {type(updated_players_df)}")
+        return jsonify({"error": "Internal data formatting error"}), 500
+
+    # Print for debugging
+    print(f"✅ Updated Players loaded correctly: {len(updated_players_df)} players")
+
+    # Ensure it's a list of dictionaries
+    if all(isinstance(p, dict) for p in updated_players_df):
+        print("✅ Data structure confirmed: list of dictionaries.")
+    else:
+        print("❌ ERROR: Updated players data is not a list of dictionaries.")
+        return jsonify({"error": "Data format issue"}), 500
+
+    # Match players from session data
+    for player in user_team:
+        matching_row = next((row for row in updated_players_df if row.get("Player") == player.get("Player")), None)
+        if not matching_row:
+            print(f"⚠️ Player {player.get('Player')} not found in updated dataset.")
+        else:
+            player["Unnamed: 0"] = matching_row.get("Unnamed: 0", "unknown")
+            player["Pos"] = matching_row.get("Pos", "unknown")
+            player["Form"] = matching_row.get("Form", "unknown")
+            player["$"] = matching_row.get("$", "unknown")
+            player["TP."] = matching_row.get("TP.", "unknown")
+            player["team"] = matching_row.get("team", "unknown")
+    
+    # Save user team in session
     session["user_team"] = user_team
     session["extra_salary"] = extra_salary
-
-    updated_players_df = full_players_df.copy()
-    for player in user_team:
-        updated_players_df.loc[updated_players_df["Player"] == player["Player"], "$"] = player["$"]
-
-    session["updated_players_df"] = updated_players_df.to_dict(orient="records")
-
-    # ✅ DEBUGGING: Print session data
-    print("✅ User team saved:", session.get("user_team"))
-    print("✅ Updated players saved:", len(session.get("updated_players_df", [])))
 
     return jsonify({"message": "✅ User team saved successfully!"})
 
@@ -54,8 +85,7 @@ def compute_result():
     option = data.get("option")
     sub_type = data.get("sub_type", "weekly")
     salary_cap = float(data.get("salary_cap", 100))
-
-    # ✅ DEBUGGING: Print session data
+    print(f"📢 Salary Cap Received: {salary_cap}")
     print("📢 Compute Request Received:", data)
     print("📢 Session Data (user_team):", session.get("user_team"))
     print("📢 Session Data (updated_players_df):", session.get("updated_players_df"))
@@ -100,7 +130,6 @@ def compute_result():
         })
 
     return jsonify({"error": "⚠️ Invalid option selected."})
-
 
 if __name__ == "__main__":
     app.run(debug=True)

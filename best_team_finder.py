@@ -19,9 +19,9 @@ class BestTeamFinder:
         find_best_team(): Runs DP optimization to find the best team.
     """
 
-    def __init__(self, best_filter_path, max_price=100):
+    def __init__(self, best_filter_df, max_price=100):
         """Initializes the optimizer and loads the best available players."""
-        self.best_filter = pd.read_csv(best_filter_path)
+        self.best_filter = best_filter_df
         self.max_price = max_price
 
         # Standardize position names (avoid capitalization issues)

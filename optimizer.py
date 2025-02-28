@@ -11,7 +11,7 @@ class FantasyOptimizer:
         else:  # If given a DataFrame, use it directly
             self.my_team = my_team
 
-        self.best_filter = pd.read_csv(best_filter_path)
+        self.best_filter = best_filter_path
         self.schedule = pd.read_csv(schedule_path)
 
         # Ensure column names are correct

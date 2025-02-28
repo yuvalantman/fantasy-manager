@@ -8,6 +8,7 @@
     <script>
         document.addEventListener("DOMContentLoaded", function() {
             generatePlayerInputs();
+            setupOptionListeners();
         });
 
         function generatePlayerInputs() {
@@ -24,10 +25,10 @@
                 container.appendChild(div);
             }
         }
-        
+
         async function autocompletePlayer(input) {
             let query = input.value.trim().toLowerCase();
-            if (query.length < 2) return; // Only start searching after 2 letters
+            if (query.length < 2) return; // Start searching after 2 letters
 
             let response = await fetch(`/autocomplete?query=${query}`);
             let players = await response.json();
@@ -56,11 +57,11 @@
 
             let userTeam = [];
             for (let i = 0; i < playerInputs.length; i++) {
-                let playerName = playerInputs[i].value;
+                let playerName = playerInputs[i].value.trim();
                 let playerSalary = parseFloat(salaryInputs[i].value);
 
                 if (!playerName || isNaN(playerSalary)) {
-                    alert("⚠️ Please enter all 10 players and their salaries");
+                    alert("⚠️ Please enter all 10 players and their salaries.");
                     return;
                 }
 
@@ -70,7 +71,7 @@
             let response = await fetch("/set_user_team", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ user_team: userTeam, extra_salary: extraSalary })
+                body: JSON.stringify({ user_team: userTeam, extra_salary: parseFloat(extraSalary) || 0 })
             });
 
             let data = await response.json();
@@ -78,20 +79,38 @@
             document.getElementById("next_step").style.display = "block";
         }
 
-        document.querySelectorAll('input[name="option"]').forEach(option => {
-            option.addEventListener("change", function () {
-                document.getElementById("sub_options").style.display = this.value === "best_substitutions" ? "block" : "none";
+        function setupOptionListeners() {
+            document.querySelectorAll('input[name="option"]').forEach(option => {
+                option.addEventListener("change", function () {
+                    let subOptions = document.getElementById("sub_options");
+                    if (this.value === "best_substitutions") {
+                        subOptions.style.display = "block";  // Show Weekly/Total choice
+                    } else {
+                        subOptions.style.display = "none";   // Hide it when Best Team is selected
+                    }
+                });
             });
-        });
+        }
 
         async function computeResult() {
             let option = document.querySelector('input[name="option"]:checked').value;
-            let subType = document.querySelector('input[name="sub_type"]:checked')?.value || "";
-            let salaryCap = document.getElementById("salary_cap").value;
+            let salaryCapInput = document.getElementById("salary_cap").value.trim();
+            let salaryCap = salaryCapInput ? parseFloat(salaryCapInput) : 100;  // Default 100 if empty
 
-            if (option === "best_team" && (!salaryCap || isNaN(salaryCap))) {
+            // Validate Salary Cap if Best Team is selected
+            if (option === "best_team" && (isNaN(salaryCap) || salaryCap <= 0)) {
                 alert("⚠️ Please enter a valid Salary Cap for Best Team.");
                 return;
+            }
+
+            let subType = "";
+            if (option === "best_substitutions") {
+                let selectedSubType = document.querySelector('input[name="sub_type"]:checked');
+                if (!selectedSubType) {
+                    alert("⚠️ Please select Weekly or Total for Substitutions.");
+                    return;
+                }
+                subType = selectedSubType.value;
             }
 
             let response = await fetch("/compute_result", {
@@ -100,7 +119,7 @@
                 body: JSON.stringify({ 
                     option: option, 
                     sub_type: subType, 
-                    salary_cap: parseFloat(salaryCap || 100) 
+                    salary_cap: salaryCap 
                 })
             });
 
@@ -124,31 +143,35 @@
                 resultDiv.innerHTML = `<p style="color: red;">${data.error}</p>`;
             }
         }
+
     </script>
 </head>
 <body>
     <h1>Fantasy Manager</h1>
+
     <div id="team_inputs"></div>
     <input type="number" id="extra_salary" placeholder="Extra Salary">
-    <input type="number" id="salary_cap" placeholder="Salary Cap (For Best Team)">
     <button onclick="setUserTeam()">Save Team</button>
+
     <div id="next_step" style="display: none;">
         <h2>Select an Option</h2>
         <label><input type="radio" name="option" value="best_team" checked> 🏆 Best Team</label>
         <label><input type="radio" name="option" value="best_substitutions"> 🔄 Best Substitutions</label>
-    
+
+        <!-- Substitutions Choice (Initially Hidden) -->
         <div id="sub_options" style="display: none;">
             <h3>Substitutions Type</h3>
             <label><input type="radio" name="sub_type" value="weekly" checked> 📅 Weekly</label>
             <label><input type="radio" name="sub_type" value="total"> 🔢 Total</label>
         </div>
-    
+
+        <!-- Salary Cap Input -->
         <label for="salary_cap">💰 Salary Cap:</label>
-        <input type="number" id="salary_cap" placeholder="Enter Salary Cap (for Best Team)">
-    
+        <input type="number" id="salary_cap" name="salary_cap" step="0.1" placeholder="Enter Salary Cap">
+
         <button onclick="computeResult()">🔍 Compute</button>
     </div>
-    
+
     <div id="result"></div>
 </body>
 </html>
