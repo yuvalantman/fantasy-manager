@@ -9,6 +9,11 @@
         document.addEventListener("DOMContentLoaded", function() {
             generatePlayerInputs();
         });
+        document.querySelectorAll('input[name="option"]').forEach(option => {
+            option.addEventListener("change", function () {
+                document.getElementById("sub_options").style.display = this.value === "best_substitutions" ? "block" : "none";
+            });
+        });
 
         function generatePlayerInputs() {
             let container = document.getElementById("team_inputs");
@@ -81,12 +86,22 @@
         async function computeResult() {
             let option = document.querySelector('input[name="option"]:checked').value;
             let subType = document.querySelector('input[name="sub_type"]:checked')?.value || "";
-            let salaryCap = document.getElementById("salary_cap")?.value || 100;
+            let salaryCap = document.getElementById("salary_cap").value;
+
+            // If Best Team is chosen, ensure Salary Cap is provided
+            if (option === "best_team" && (!salaryCap || isNaN(salaryCap))) {
+                alert("⚠️ Please enter a valid Salary Cap for Best Team.");
+                return;
+            }
 
             let response = await fetch("/compute_result", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ option: option, sub_type: subType, salary_cap: salaryCap })
+                body: JSON.stringify({ 
+                    option: option, 
+                    sub_type: subType, 
+                    salary_cap: parseFloat(salaryCap || 100) 
+                })
             });
 
             let data = await response.json();
@@ -94,12 +109,14 @@
             resultDiv.innerHTML = "<h3>Results:</h3>";
 
             if (data.best_team) {
+                resultDiv.innerHTML += `<h4>🏆 Best Team</h4>`;
                 data.best_team.forEach(player => {
                     resultDiv.innerHTML += `<p>${player.Player} - ${player.team} ($${player.$})</p>`;
                 });
                 resultDiv.innerHTML += `<p><strong>Total Form:</strong> ${data.total_form}</p>`;
                 resultDiv.innerHTML += `<p><strong>Total Price:</strong> $${data.total_price}</p>`;
             } else if (data.new_team) {
+                resultDiv.innerHTML += `<h4>🔄 Best Substitutions</h4>`;
                 resultDiv.innerHTML += `<p><strong>New Team Form:</strong> ${data.new_form}</p>`;
                 resultDiv.innerHTML += `<p><strong>Players Out:</strong> ${data.substitutions_out.join(", ")}</p>`;
                 resultDiv.innerHTML += `<p><strong>Players In:</strong> ${data.substitutions_in.join(", ")}</p>`;
@@ -116,8 +133,22 @@
     <input type="number" id="salary_cap" placeholder="Salary Cap (For Best Team)">
     <button onclick="setUserTeam()">Save Team</button>
     <div id="next_step" style="display: none;">
-        <button onclick="computeResult()">Compute</button>
+        <h2>Select an Option</h2>
+        <label><input type="radio" name="option" value="best_team" checked> 🏆 Best Team</label>
+        <label><input type="radio" name="option" value="best_substitutions"> 🔄 Best Substitutions</label>
+    
+        <div id="sub_options" style="display: none;">
+            <h3>Substitutions Type</h3>
+            <label><input type="radio" name="sub_type" value="weekly" checked> 📅 Weekly</label>
+            <label><input type="radio" name="sub_type" value="total"> 🔢 Total</label>
+        </div>
+    
+        <label for="salary_cap">💰 Salary Cap:</label>
+        <input type="number" id="salary_cap" placeholder="Enter Salary Cap (for Best Team)">
+    
+        <button onclick="computeResult()">🔍 Compute</button>
     </div>
+    
     <div id="result"></div>
 </body>
 </html>

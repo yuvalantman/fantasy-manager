@@ -59,7 +59,7 @@ def compute_result():
     updated_players_data = session.get("updated_players_df")
 
     if not user_team_data or not updated_players_data:
-        return jsonify({"error": "User team is missing. Please enter your team first."}), 400
+        return jsonify({"error": "⚠️ User team is missing. Please enter your team first."}), 400
 
     user_team = pd.DataFrame(user_team_data)
     updated_players_df = pd.DataFrame(updated_players_data)
@@ -67,6 +67,9 @@ def compute_result():
     if option == "best_team":
         team_finder = BestTeamFinder(updated_players_df, salary_cap)
         best_team = team_finder.find_best_team()
+
+        if best_team is None or best_team.empty:
+            return jsonify({"error": "⚠️ No valid team found within the given salary cap."})
 
         return jsonify({
             "best_team": best_team.to_dict(orient="records"),
@@ -89,7 +92,7 @@ def compute_result():
             "substitutions_in": best_in
         })
 
-    return jsonify({"error": "Invalid option selected."})
+    return jsonify({"error": "⚠️ Invalid option selected."})
 
 if __name__ == "__main__":
     app.run(debug=True)
