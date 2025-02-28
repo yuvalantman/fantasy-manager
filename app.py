@@ -3,8 +3,8 @@ import pandas as pd
 from optimizer import FantasyOptimizer
 from best_team_finder import BestTeamFinder
 
-app = Flask(__name__, template_folder="templates")
-app.secret_key = "super_secret_key"  # Needed for session storage
+app = Flask(__name__, template_folder="templates", static_folder="templates/static")
+app.secret_key = "super_secret_key"
 
 FULL_PLAYERS_CSV = "data/top_update_players.csv"
 SCHEDULE_CSV = "data/GW19Schedule.csv"
@@ -38,7 +38,6 @@ def set_user_team():
     session["user_team"] = user_team
     session["extra_salary"] = extra_salary
 
-    # Update salaries for players in the user's team
     updated_players_df = full_players_df.copy()
     for player in user_team:
         updated_players_df.loc[updated_players_df["Player"] == player["Player"], "$"] = player["$"]
@@ -53,10 +52,11 @@ def compute_result():
     data = request.json
     option = data.get("option")
     sub_type = data.get("sub_type", "weekly")
+    salary_cap = float(data.get("salary_cap", 100))
 
-    user_team_data = session.get("user_team", [])
+    user_team_data = session.get("user_team")
     extra_salary = float(session.get("extra_salary", 0))
-    updated_players_data = session.get("updated_players_df", [])
+    updated_players_data = session.get("updated_players_df")
 
     if not user_team_data or not updated_players_data:
         return jsonify({"error": "User team is missing. Please enter your team first."}), 400
@@ -65,7 +65,7 @@ def compute_result():
     updated_players_df = pd.DataFrame(updated_players_data)
 
     if option == "best_team":
-        team_finder = BestTeamFinder(updated_players_df, 100)
+        team_finder = BestTeamFinder(updated_players_df, salary_cap)
         best_team = team_finder.find_best_team()
 
         return jsonify({
@@ -90,7 +90,6 @@ def compute_result():
         })
 
     return jsonify({"error": "Invalid option selected."})
-
 
 if __name__ == "__main__":
     app.run(debug=True)

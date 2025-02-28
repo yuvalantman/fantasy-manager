@@ -15,6 +15,7 @@
             container.innerHTML = "";
             for (let i = 0; i < 10; i++) {
                 let div = document.createElement("div");
+                div.classList.add("player-entry");
                 div.innerHTML = `
                     <input type="text" class="player-input" onkeyup="autocompletePlayer(this)" placeholder="Player Name">
                     <div class="autocomplete-dropdown"></div>
@@ -23,15 +24,18 @@
                 container.appendChild(div);
             }
         }
+        
         async function autocompletePlayer(input) {
             let query = input.value.trim().toLowerCase();
-            if (query.length < 2) return;
+            if (query.length < 2) return; // Only start searching after 2 letters
 
             let response = await fetch(`/autocomplete?query=${query}`);
             let players = await response.json();
 
             let dropdown = input.nextElementSibling;
             dropdown.innerHTML = "";
+            dropdown.style.display = "block"; // Show dropdown
+
             players.forEach(player => {
                 let option = document.createElement("div");
                 option.className = "autocomplete-item";
@@ -39,6 +43,7 @@
                 option.onclick = function() {
                     input.value = player;
                     dropdown.innerHTML = "";
+                    dropdown.style.display = "none"; // Hide dropdown after selection
                 };
                 dropdown.appendChild(option);
             });
@@ -76,11 +81,12 @@
         async function computeResult() {
             let option = document.querySelector('input[name="option"]:checked').value;
             let subType = document.querySelector('input[name="sub_type"]:checked')?.value || "";
+            let salaryCap = document.getElementById("salary_cap")?.value || 100;
 
             let response = await fetch("/compute_result", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ option: option, sub_type: subType })
+                body: JSON.stringify({ option: option, sub_type: subType, salary_cap: salaryCap })
             });
 
             let data = await response.json();
@@ -105,18 +111,11 @@
 </head>
 <body>
     <h1>Fantasy Manager</h1>
-    <div id="team_inputs">
-        <input type="text" class="player-input" onkeyup="autocompletePlayer(this)" placeholder="Player Name">
-        <div class="autocomplete-dropdown"></div>
-    </div>
+    <div id="team_inputs"></div>
     <input type="number" id="extra_salary" placeholder="Extra Salary">
+    <input type="number" id="salary_cap" placeholder="Salary Cap (For Best Team)">
     <button onclick="setUserTeam()">Save Team</button>
-
     <div id="next_step" style="display: none;">
-        <input type="radio" name="option" value="best_team" checked> Best Team
-        <input type="radio" name="option" value="best_substitutions"> Best Subs
-        <input type="radio" name="sub_type" value="weekly"> Weekly
-        <input type="radio" name="sub_type" value="total"> Total
         <button onclick="computeResult()">Compute</button>
     </div>
     <div id="result"></div>
