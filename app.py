@@ -31,7 +31,7 @@ def set_user_team():
     extra_salary = float(data.get("extra_salary", 0))
 
     if len(user_team) != 10:
-        return jsonify({"error": "Please enter exactly 10 players."}), 400
+        return jsonify({"error": "⚠️ Please enter exactly 10 players."}), 400
 
     session["user_team"] = user_team
     session["extra_salary"] = extra_salary
@@ -40,7 +40,11 @@ def set_user_team():
     for player in user_team:
         updated_players_df.loc[updated_players_df["Player"] == player["Player"], "$"] = player["$"]
 
+    # Convert DataFrame to list of dicts to ensure session stores it properly
     session["updated_players_df"] = updated_players_df.to_dict(orient="records")
+
+    print("✅ User team saved:", session["user_team"])  # Debugging
+    print("✅ Updated players saved:", len(session["updated_players_df"]))  # Debugging
 
     return jsonify({"message": "✅ User team saved successfully!"})
 
@@ -51,14 +55,14 @@ def compute_result():
     sub_type = data.get("sub_type", "weekly")
     salary_cap = float(data.get("salary_cap", 100))
 
-    # Debugging: Print session data to see if it exists
-    print("Session Data:", session)
+    print("📢 Received Compute Request: ", data)  # Debugging
 
-    user_team_data = session.get("user_team")
+    user_team_data = session.get("user_team", [])
     extra_salary = float(session.get("extra_salary", 0))
-    updated_players_data = session.get("updated_players_df")
+    updated_players_data = session.get("updated_players_df", [])
 
     if not user_team_data or not updated_players_data:
+        print("❌ ERROR: User team or updated players missing.")  # Debugging
         return jsonify({"error": "⚠️ User team is missing. Please enter your team first."}), 400
 
     user_team = pd.DataFrame(user_team_data)
