@@ -11,11 +11,9 @@ SCHEDULE_CSV = "data/GW19Schedule.csv"
 
 full_players_df = pd.read_csv(FULL_PLAYERS_CSV)
 
-
 @app.route("/")
 def home():
     return render_template("index.html")
-
 
 @app.route("/autocomplete", methods=["GET"])
 def autocomplete():
@@ -26,7 +24,6 @@ def autocomplete():
 
     suggestions = full_players_df[full_players_df["Player"].str.lower().str.contains(query, na=False)]
     return jsonify(suggestions["Player"].tolist())
-
 
 @app.route("/set_user_team", methods=["POST"])
 def set_user_team():
@@ -49,7 +46,6 @@ def set_user_team():
     session["updated_players_df"] = updated_players_df.to_dict(orient="records")
 
     return jsonify({"message": "User team saved successfully."})
-
 
 @app.route("/compute_result", methods=["POST"])
 def compute_result():
