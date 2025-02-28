@@ -5,37 +5,40 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fantasy Manager</title>
     <script>
-        async function findBestTeam() {
-            let salaryCap = document.getElementById("salary_cap").value;
-            let response = await fetch("/find_best_team", {
+        let userTeam = [];
+
+        async function setUserTeam() {
+            let extraSalary = document.getElementById("extra_salary").value;
+            let playerInputs = document.querySelectorAll(".player-input");
+            let salaryInputs = document.querySelectorAll(".salary-input");
+
+            userTeam = [];
+            for (let i = 0; i < playerInputs.length; i++) {
+                let playerName = playerInputs[i].value;
+                let playerSalary = parseFloat(salaryInputs[i].value);
+                if (playerName && !isNaN(playerSalary)) {
+                    userTeam.push({ Player: playerName, $: playerSalary });
+                }
+            }
+
+            let response = await fetch("/set_user_team", {
                 method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({salary_cap: salaryCap})
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ user_team: userTeam, extra_salary: extraSalary })
             });
 
             let data = await response.json();
-            let resultDiv = document.getElementById("result");
-            resultDiv.innerHTML = "<h3>Best Team:</h3>";
-
-            if (data.best_team) {
-                data.best_team.forEach(player => {
-                    resultDiv.innerHTML += `<p>${player.Player} - ${player.team} ($${player.$})</p>`;
-                });
-                resultDiv.innerHTML += `<p><strong>Total Form:</strong> ${data.total_form}</p>`;
-                resultDiv.innerHTML += `<p><strong>Total Price:</strong> $${data.total_price}</p>`;
-            } else {
-                resultDiv.innerHTML = `<p style="color: red;">${data.error}</p>`;
-            }
+            alert(data.message);
         }
 
         async function autocompletePlayer(input) {
             let query = input.value.trim().toLowerCase();
-            if (query.length < 2) return; // Wait for at least 2 letters
+            if (query.length < 2) return;
 
             let response = await fetch(`/autocomplete?query=${query}`);
             let players = await response.json();
 
-            let dropdown = document.getElementById("player_suggestions");
+            let dropdown = input.nextElementSibling;
             dropdown.innerHTML = "";
             players.forEach(player => {
                 let option = document.createElement("div");
@@ -43,27 +46,19 @@
                 option.innerText = player;
                 option.onclick = function() {
                     input.value = player;
-                    dropdown.innerHTML = ""; // Clear suggestions
+                    dropdown.innerHTML = "";
                 };
                 dropdown.appendChild(option);
             });
         }
 
         async function findBestSubstitutions() {
-            let extraSalary = document.getElementById("extra_salary").value;
             let subType = document.querySelector('input[name="sub_type"]:checked').value;
-
-            let userTeam = [];
-            let playerInputs = document.querySelectorAll(".player-input");
-
-            playerInputs.forEach(input => {
-                userTeam.push({ Player: input.value });
-            });
 
             let response = await fetch("/find_best_substitutions", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ user_team: userTeam, extra_salary: extraSalary, sub_type: subType })
+                body: JSON.stringify({ sub_type: subType })
             });
 
             let data = await response.json();
@@ -75,7 +70,7 @@
                 subResult.innerHTML += `<p><strong>Players Out:</strong> ${data.substitutions_out.join(", ")}</p>`;
                 subResult.innerHTML += `<p><strong>Players In:</strong> ${data.substitutions_in.join(", ")}</p>`;
             } else {
-                subResult.innerHTML = `<p style="color: red;">No valid substitutions found.</p>`;
+                subResult.innerHTML = `<p style="color: red;">${data.error}</p>`;
             }
         }
     </script>
@@ -83,18 +78,28 @@
 <body>
     <h1>Fantasy Manager</h1>
 
-    <h2>Find Best Team</h2>
-    <label for="salary_cap">Salary Cap: </label>
-    <input type="number" id="salary_cap" value="100">
-    <button onclick="findBestTeam()">Find Best Team</button>
-    <div id="result"></div>
+    <h2>Enter Your Team</h2>
+    <p>Enter your 10 players and their salaries:</p>
+    <div id="team_inputs">
+        <div>
+            <input type="text" class="player-input" onkeyup="autocompletePlayer(this)" placeholder="Player Name">
+            <div class="autocomplete-dropdown"></div>
+            <input type="number" class="salary-input" placeholder="Salary">
+        </div>
+    </div>
+    <button onclick="setUserTeam()">Save Team</button>
+    <br><br>
+
+    <label>Extra Salary: </label>
+    <input type="number" id="extra_salary" value="0">
 
     <h2>Find Best Substitutions</h2>
-    <label>Enter Your Team:</label>
-    <div id="team_inputs">
-        <input type="text" class="player-input" onkeyup="autocompletePlayer(this)">
-        <div id="player_suggestions"></div>
-    </div>
+    <label>
+        <input type="radio" name="sub_type" value="weekly" checked> Weekly
+    </label>
+    <label>
+        <input type="radio" name="sub_type" value="total"> Total Form
+    </label>
     <button onclick="findBestSubstitutions()">Find Best Substitutions</button>
     <div id="sub_result"></div>
 </body>

@@ -131,7 +131,7 @@ class FantasyOptimizer:
             print("✅ No substitutions made (no possible improvement within salary cap).")
 
 
-        return best_team, best_weekly_form, best_salary, best_out, best_in
+        return best_team, best_weekly_form.round(2), best_salary.round(1), best_out, best_in
     
 
     def find_best_total_substitutions(self, extra_salary=0):
@@ -208,7 +208,7 @@ class FantasyOptimizer:
             print(f"✅ In: {', '.join(best_in)}")
         else:
             print("✅ No substitutions made (no possible improvement within salary cap).")
-        return best_team, best_form, best_salary, best_out, best_in
+        return best_team, best_form.round(2), best_salary.round(1), best_out, best_in
 
 
 

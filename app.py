@@ -1,10 +1,12 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session
 import pandas as pd
 from optimizer import FantasyOptimizer
 from best_team_finder import BestTeamFinder
 
 app = Flask(__name__, template_folder="templates")
-# Define file paths (update these paths if needed)
+app.secret_key = "super_secret_key"  # Needed for session storage
+
+# Define file paths
 FULL_PLAYERS_CSV = "data/top_update_players.csv"
 BEST_FILTER_CSV = "data/top_players.csv"
 SCHEDULE_CSV = "data/GW19Schedule.csv"
@@ -15,7 +17,8 @@ full_players_df = pd.read_csv(FULL_PLAYERS_CSV)
 
 @app.route("/")
 def home():
-    return render_template("index.html")  # This will load templates/index.html
+    return render_template("index.html")
+
 
 @app.route("/autocomplete", methods=["GET"])
 def autocomplete():
@@ -25,35 +28,33 @@ def autocomplete():
     return jsonify(suggestions["Player"].tolist())
 
 
-@app.route("/find_best_team", methods=["POST"])
-def find_best_team():
-    """Find the best team using Dynamic Programming"""
+@app.route("/set_user_team", methods=["POST"])
+def set_user_team():
+    """Store the user's team and extra salary in session storage."""
     data = request.json
-    salary_cap = float(data.get("salary_cap", 100))
-
-    team_finder = BestTeamFinder(FULL_PLAYERS_CSV, salary_cap)
-    best_team = team_finder.find_best_team()
-
-    if best_team is not None and not best_team.empty:
-        return jsonify({
-            "best_team": best_team.to_dict(orient="records"),
-            "total_form": best_team["Form"].sum(),
-            "total_price": best_team["$"].sum(),
-        })
-    else:
-        return jsonify({"error": "No valid team found within the given salary cap."})
+    session["user_team"] = data.get("user_team", [])
+    session["extra_salary"] = float(data.get("extra_salary", 0))
+    
+    return jsonify({"message": "User team saved successfully."})
 
 
 @app.route("/find_best_substitutions", methods=["POST"])
 def find_best_substitutions():
-    """Find the best substitutions for a user's team"""
-    data = request.json
-    user_team_data = pd.DataFrame(data.get("user_team"))
-    extra_salary = float(data.get("extra_salary", 0))
+    """Find the best substitutions using stored user team."""
+    sub_type = request.json.get("sub_type", "weekly")
 
-    optimizer = FantasyOptimizer(user_team_data, FULL_PLAYERS_CSV, SCHEDULE_CSV)
+    # Retrieve stored team and salary
+    user_team_data = session.get("user_team", [])
+    extra_salary = float(session.get("extra_salary", 0))
 
-    if data.get("sub_type") == "weekly":
+    if not user_team_data:
+        return jsonify({"error": "No user team found. Please enter your team first."})
+
+    user_team_df = pd.DataFrame(user_team_data)
+
+    optimizer = FantasyOptimizer(user_team_df, FULL_PLAYERS_CSV, SCHEDULE_CSV)
+
+    if sub_type == "weekly":
         best_team, new_form, _, best_out, best_in = optimizer.find_best_weekly_substitutions(extra_salary)
     else:
         best_team, new_form, _, best_out, best_in = optimizer.find_best_total_substitutions(extra_salary)
