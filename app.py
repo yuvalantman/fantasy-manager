@@ -11,6 +11,8 @@ app.secret_key = "super_secret_key"
 # Store session on the server instead of cookies
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
+app.config["SESSION_FILE_DIR"] = "./.flask_session/"  # Store session files locally
+app.config["SECRET_KEY"] = "your_secret_key_here"  # Required for session security
 Session(app)  # Initialize server-side session
 
 FULL_PLAYERS_CSV = "data/top_update_players.csv"
