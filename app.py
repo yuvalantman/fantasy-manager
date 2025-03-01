@@ -4,6 +4,7 @@ import pandas as pd
 import json
 from optimizer import FantasyOptimizer
 from best_team_finder import BestTeamFinder
+import os
 
 app = Flask(__name__, template_folder="templates", static_folder="templates/static")
 app.secret_key = "super_secret_key"
@@ -76,8 +77,10 @@ def set_user_team():
             player["team"] = matching_row.get("team", "unknown")
     
     # Save user team in session
+    session["updated_players_df"] = updated_players_df
     session["user_team"] = user_team
     session["extra_salary"] = extra_salary
+    session.modified=True
 
     return jsonify({"message": "✅ User team saved successfully!"})
 
