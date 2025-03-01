@@ -6,8 +6,7 @@
     <title>Fantasy Manager</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <script>
-        document.addEventListener("DOMContentLoaded", async function() {
-            await checkUserTeam(); 
+        document.addEventListener("DOMContentLoaded", function() { 
             generatePlayerInputs();
             setupOptionListeners();
         });
@@ -161,15 +160,6 @@
             }
         }
 
-
-        async function checkUserTeam() {
-            let response = await fetch("/get_user_team");
-            let data = await response.json();
-
-            if (data.user_team.length > 0) {
-                document.getElementById("next_step").style.display = "block"; // Show next options
-            }
-        }
 
     </script>
 </head>
