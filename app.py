@@ -4,7 +4,6 @@ import pandas as pd
 import json
 from optimizer import FantasyOptimizer
 from best_team_finder import BestTeamFinder
-import os
 
 app = Flask(__name__, template_folder="templates", static_folder="templates/static")
 app.secret_key = "super_secret_key"
