@@ -38,45 +38,28 @@ def set_user_team():
     data = request.get_json()
     user_team = data.get("user_team", [])
     extra_salary = float(data.get("extra_salary", 0))
-    updated_players_json = full_players_df.copy()
-    
-    
+    updated_players_df = full_players_df.copy()
 
-    # Only deserialize if it's a string
-    if isinstance(updated_players_json, str):
-        updated_players_df = json.loads(updated_players_json)
-    else:
-        updated_players_df = updated_players_json  # Already a list
-
-    if not isinstance(updated_players_df, list):
-        print(f"❌ ERROR: updated_players_df is not a list but {type(updated_players_df)}")
-        return jsonify({"error": "Internal data formatting error"}), 500
-
-    # Print for debugging
-    print(f"✅ Updated Players loaded correctly: {len(updated_players_df)} players")
-
-    # Ensure it's a list of dictionaries
-    if all(isinstance(p, dict) for p in updated_players_df):
-        print("✅ Data structure confirmed: list of dictionaries.")
-    else:
-        print("❌ ERROR: Updated players data is not a list of dictionaries.")
-        return jsonify({"error": "Data format issue"}), 500
-    
     for player in user_team:
         updated_players_df.loc[updated_players_df["Player"] == player["Player"], "$"] = player["$"]
 
     # Match players from session data
     for player in user_team:
-        matching_row = next((row for row in updated_players_df if row.get("Player") == player.get("Player")), None)
-        if not matching_row:
+        matching_row = updated_players_df.loc[updated_players_df["Player"] == player.get("Player")]
+
+        if matching_row.empty:
             print(f"⚠️ Player {player.get('Player')} not found in updated dataset.")
         else:
-            player["Unnamed: 0"] = matching_row.get("Unnamed: 0", "unknown")
-            player["Pos"] = matching_row.get("Pos", "unknown")
-            player["Form"] = matching_row.get("Form", "unknown")
-            player["$"] = matching_row.get("$", "unknown")
-            player["TP."] = matching_row.get("TP.", "unknown")
-            player["team"] = matching_row.get("team", "unknown")
+            # Extract the first row from the filtered DataFrame
+            row_data = matching_row.iloc[0]
+
+            player["Unnamed: 0"] = row_data.get("Unnamed: 0", "unknown")
+            player["Pos"] = row_data.get("Pos", "unknown")
+            player["Form"] = row_data.get("Form", "unknown")
+            player["$"] = row_data.get("$", "unknown")
+            player["TP."] = row_data.get("TP.", "unknown")
+            player["team"] = row_data.get("team", "unknown")
+
     
     # Save user team in session
     session["updated_players_df"] = updated_players_df
@@ -101,7 +84,7 @@ def compute_result():
     extra_salary = float(session.get("extra_salary", 0))
     updated_players_data = session.get("updated_players_df")
 
-    if not user_team_data or not updated_players_data:
+    if not user_team_data or updated_players_data.empty:
         print("❌ ERROR: User team or updated players missing.")
         return jsonify({"error": "⚠️ User team is missing. Please enter your team first."}), 400
 

@@ -31,7 +31,7 @@ class FantasyOptimizer:
 
     def get_playing_players(self, team_df, day):
         """Returns players from a given team who have a game on the given day."""
-        if day not in self.playing_teams_dict.keys:
+        if day not in self.playing_teams_dict.keys():
             return team_df.iloc[0:0]  # Return empty DataFrame
         return team_df[team_df["Player"].isin(self.playing_players_dict[day])]
 
@@ -193,6 +193,7 @@ class FantasyOptimizer:
 
                     new_form = new_team["Form"].sum()
                     new_salary = new_team["$"].sum()
+                    print(new_team)
 
                     if (new_team["Pos"].value_counts().get("front", 0) == 5 and 
                         new_team["Pos"].value_counts().get("back", 0) == 5 and
