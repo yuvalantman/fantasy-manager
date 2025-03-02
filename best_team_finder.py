@@ -23,6 +23,7 @@ class BestTeamFinder:
         """Initializes the optimizer and loads the best available players."""
         self.best_filter = best_filter_df
         self.max_price = max_price
+        
 
         # Standardize position names (avoid capitalization issues)
         self.best_filter["Pos"] = self.best_filter["Pos"].str.lower()

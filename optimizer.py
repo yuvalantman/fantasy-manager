@@ -24,6 +24,7 @@ class FantasyOptimizer:
             day-1: self.schedule[self.schedule[str(day)] != "-"]["TeamAgg"].tolist()
             for day in range(2, 9)  # Days from 1 to 7
         }
+        print(self.playing_teams_dict)
         self.playing_players_dict = {
             day : self.best_filter[self.best_filter["team"].isin(self.playing_teams_dict[day])]["Player"].tolist()
             for day in range(1,8)
@@ -93,10 +94,10 @@ class FantasyOptimizer:
                 needed_pos = [p["Pos"] for p in out_dicts]
 
                 valid_replacements = available_players[
-                    (available_players["Pos"].isin(needed_pos)) | 
-                    (available_players["Pos"].value_counts().get("front", 0) < 5) | 
-                    (available_players["Pos"].value_counts().get("back", 0) < 5)
+                    (available_players["Pos"].isin(needed_pos)) & available_players["Salary"] <= available_salary
                 ].sort_values(by="Form", ascending=False).head(20)
+                if (len(valid_replacements) < num_swaps):
+                    continue
 
                 for in_players in itertools.combinations(valid_replacements.itertuples(index=False, name="PlayerTuple"), num_swaps):
                     in_list = list(in_players)
@@ -108,7 +109,6 @@ class FantasyOptimizer:
                     new_team = self.my_team[~self.my_team["Player"].isin([p["Player"] for p in out_dicts])].copy()
                     new_team = pd.concat([new_team, pd.DataFrame(in_dicts, columns=self.my_team.columns)], ignore_index=True)
 
-                    new_form = self.get_weekly_form(team_df=new_team)
                     new_salary = new_team["Salary"].sum()
 
                     if new_salary > max_salary:
@@ -119,6 +119,7 @@ class FantasyOptimizer:
 
                     if front_count != 5 or back_count != 5:
                         continue  
+                    new_form = self.get_weekly_form(team_df=new_team)
 
                     if new_form > best_weekly_form or (new_form == best_weekly_form and new_salary < best_salary):
                         best_team = new_team.copy()
@@ -141,25 +142,26 @@ class FantasyOptimizer:
     
 
     def find_best_total_substitutions(self, extra_salary=0):
-        """ 
-        Finds the best 1 or 2 substitutions that improve total form 
-        while respecting salary cap and position balance.
+        """Finds the best 1 or 2 substitutions that improve total form while respecting salary cap and position balance."""
         
-        Parameters:
-            df (pd.DataFrame): Full list of good players.
-            my_team (pd.DataFrame): Current 10-player team.
-        
-        Returns:
-            pd.DataFrame: The new best team after substitutions.
-        """
+        print("\n🔍 DEBUG: Starting Best Total Substitutions...\n")  # ✅ Debug Start
 
         # Compute current total form and salary
         current_form = self.my_team["Form"].sum()
         current_salary = self.my_team["$"].sum()
+        max_salary = current_salary + extra_salary
 
+        print(f"🔵 Current Team Form: {current_form}, Salary: {current_salary}, Max Salary: {max_salary}\n")  # ✅ Debug Current Team
+
+        self.my_team = self.my_team.rename(columns={"$": "Salary"})
+        self.best_filter = self.best_filter.rename(columns={"$": "Salary"})
+        self.my_team["Salary"] = self.my_team["Salary"].astype(float)
+        self.best_filter["Salary"] = self.best_filter["Salary"].astype(float)
         # Only consider top 50 players by form instead of all
         available_players = self.best_filter[~self.best_filter["Player"].isin(self.my_team["Player"])].copy()
         available_players = available_players.sort_values(by="Form", ascending=False)
+
+        print(f"📌 Available Players Before Filtering: {len(available_players)}\n")  # ✅ Debug Number of Available Players
 
         best_team = self.my_team.copy()
         best_form = current_form
@@ -168,54 +170,76 @@ class FantasyOptimizer:
 
         # Try 1-player and 2-player swaps
         for num_swaps in [1, 2]:
-            for out_players in itertools.combinations(self.my_team.itertuples(index=False, name=None), num_swaps):
+            for out_players in itertools.combinations(self.my_team.itertuples(index=False, name="PlayerTuple"), num_swaps):
                 out_list = list(out_players)
 
                 # Compute available salary (sum of removed players)
-                available_salary = sum(float(player[2]) for player in out_list)
+                available_salary = sum(float(player.Salary) for player in out_list) + extra_salary
 
                 # Get positions needed after removing these players
-                needed_pos = [player[5] for player in out_list]
+                needed_pos = [player.Pos for player in out_list]
 
-                # Filter replacements by position and salary
+                print(f"🔄 Checking Out Players: {[p.Player for p in out_list]}, Available Salary: {available_salary}, Needed Positions: {needed_pos}")  # ✅ Debug Out Players
+
+                # **Filter replacements by position and salary**
                 valid_replacements = available_players[
                     (available_players["Pos"].isin(needed_pos)) & 
-                    (available_players["$"] <= available_salary + extra_salary)
-                ].sort_values(by="Form", ascending=False).head(20)  # Further limit to top 20
+                    (available_players["Salary"] <= available_salary)
+                ].sort_values(by="Form", ascending=False).head(50)  # Further limit to top 50
+
+                print(f"✅ Valid Replacements Found: {len(valid_replacements)} for Positions: {needed_pos}\n")  # ✅ Debug Number of Valid Replacements
+
+                if len(valid_replacements) < num_swaps:
+                    print("❌ Skipping - Not enough valid replacements!\n")  # ✅ Debug Skipping Due to No Replacements
+                    continue  
 
                 # Try all possible replacement combinations
-                for in_players in itertools.combinations(valid_replacements.itertuples(index=False, name=None), num_swaps):
+                for in_players in itertools.combinations(valid_replacements.itertuples(index=False, name="PlayerTuple"), num_swaps):
                     in_list = list(in_players)
 
-                    # Ensure 5 front / 5 back balance
-                    new_team = self.my_team[~self.my_team["Player"].isin([p[1] for p in out_list])].copy()
+                    # **Ensure 5 front / 5 back balance**
+                    new_team = self.my_team[~self.my_team["Player"].isin([p.Player for p in out_list])].copy()
                     new_team = pd.concat([new_team, pd.DataFrame(in_list, columns=self.my_team.columns)], ignore_index=True)
-
+                    
+                    new_team["Salary"] = new_team["Salary"].astype(float)
                     new_form = new_team["Form"].sum()
-                    new_salary = new_team["$"].sum()
-                    print(new_team)
+                    new_salary = new_team["Salary"].sum()
 
-                    if (new_team["Pos"].value_counts().get("front", 0) == 5 and 
-                        new_team["Pos"].value_counts().get("back", 0) == 5 and
-                        new_salary <= current_salary + extra_salary):  # Ensure salary cap is respected
+                    # **Check salary constraint before continuing**
+                    if new_salary > max_salary:
+                        print(f"💰 Skipping - New Team Salary {new_salary} Exceeds Max {max_salary}!\n")  # ✅ Debug Salary Exceeded
+                        continue  
 
-                        if new_form > best_form:
-                            best_team = new_team.copy()
-                            best_form = new_form
-                            best_salary = new_salary
-                            best_out = [p[1] for p in out_list]
-                            best_in = [p[1] for p in in_list]
+                    # Ensure positional balance remains valid
+                    front_count = new_team["Pos"].value_counts().get("front", 0)
+                    back_count = new_team["Pos"].value_counts().get("back", 0)
 
-        # Print Summary
+                    if front_count != 5 or back_count != 5:
+                        print(f"❌ Skipping - Invalid Position Balance! Front: {front_count}, Back: {back_count}\n")  # ✅ Debug Invalid Position Balance
+                        continue  
+
+                    # **Update best team if better**
+                    if new_form > best_form:
+                        print(f"✅ Found Better Team! New Form: {new_form}, Old Form: {best_form}\n")  # ✅ Debug Found Better Team
+                        best_team = new_team.copy()
+                        best_form = new_form
+                        best_salary = new_salary
+                        best_out = [p.Player for p in out_list]
+                        best_in = [p.Player for p in in_list]
+
+        # **Final Debug Summary**
         print(f"🔵 Current Team - Form: {current_form}, Salary: {current_salary}")
         print(f"🟢 New Team - Form: {best_form}, Salary: {best_salary}")
+
         if best_out and best_in:
             print(f"🔄 Substitutions Made:")
             print(f"❌ Out: {', '.join(best_out)}")
             print(f"✅ In: {', '.join(best_in)}")
         else:
             print("✅ No substitutions made (no possible improvement within salary cap).")
+
         return best_team, best_form.round(2), best_salary.round(1), best_out, best_in
+
 
 
 

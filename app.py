@@ -89,7 +89,9 @@ def compute_result():
         return jsonify({"error": "⚠️ User team is missing. Please enter your team first."}), 400
 
     user_team = pd.DataFrame(user_team_data)
+    user_team = user_team[["Player", "$", "Form", "TP.", "Pos","team"]]
     updated_players_df = pd.DataFrame(updated_players_data)
+    updated_players_df = updated_players_df[["Player", "$", "Form", "TP.", "Pos","team"]]
 
     if option == "best_team":
         team_finder = BestTeamFinder(updated_players_df, salary_cap)
@@ -98,26 +100,39 @@ def compute_result():
         if best_team is None or best_team.empty:
             return jsonify({"error": "⚠️ No valid team found within the given salary cap."})
 
-        return jsonify({
+        response = {
             "best_team": best_team.to_dict(orient="records"),
             "total_form": best_team["Form"].sum(),
             "total_price": best_team["$"].sum()
-        })
+        }
+        print("📢 Sending Response:", response)
+        return jsonify(response)
 
     elif option == "best_substitutions":
         optimizer = FantasyOptimizer(user_team, updated_players_df, SCHEDULE_CSV)
 
         if sub_type == "weekly":
             best_team, new_form, _, best_out, best_in = optimizer.find_best_weekly_substitutions(extra_salary)
+            response = {
+                "new_team": best_team.to_dict(orient="records"),
+                "new_form": new_form,
+                "substitutions_out": best_out,
+                "substitutions_in": best_in
+            }
         else:
             best_team, new_form, _, best_out, best_in = optimizer.find_best_total_substitutions(extra_salary)
+            response = {
+                "new_team": best_team.to_dict(orient="records"),
+                "new_form": new_form,
+                "substitutions_out": best_out,
+                "substitutions_in": best_in
+            }
 
-        return jsonify({
-            "new_team": best_team.to_dict(orient="records"),
-            "new_form": new_form,
-            "substitutions_out": best_out,
-            "substitutions_in": best_in
-        })
+        if best_team is None or best_team.empty:
+            return jsonify({"error": "⚠️ No valid substitutions found."})
+
+        print("📢 Sending Response:", response)  # ✅ Debug Flask Response
+        return jsonify(response)
 
     return jsonify({"error": "⚠️ Invalid option selected."})
 
