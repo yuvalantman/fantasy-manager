@@ -20,14 +20,20 @@ class FantasyOptimizer:
         # Standardize position names (to avoid issues with capitalization)
         self.my_team["Pos"] = self.my_team["Pos"].str.lower()
         self.best_filter["Pos"] = self.best_filter["Pos"].str.lower()
+        self.playing_teams_dict = {
+            day-1: self.schedule[self.schedule[str(day)] != "-"]["TeamAgg"].tolist()
+            for day in range(2, 9)  # Days from 1 to 7
+        }
+        self.playing_players_dict = {
+            day : self.best_filter[self.best_filter["team"].isin(self.playing_teams_dict[day])]["Player"].tolist()
+            for day in range(1,8)
+        }
 
     def get_playing_players(self, team_df, day):
         """Returns players from a given team who have a game on the given day."""
-        if str(day) not in self.schedule.columns:
+        if day not in self.playing_teams_dict.keys:
             return team_df.iloc[0:0]  # Return empty DataFrame
-
-        playing_teams = self.schedule[self.schedule[str(day)] != "-"]["TeamAgg"].tolist()
-        return team_df[team_df["team"].isin(playing_teams)]
+        return team_df[team_df["Player"].isin(self.playing_players_dict[day])]
 
 
     def get_weekly_form(self, team_df=None):
@@ -36,7 +42,7 @@ class FantasyOptimizer:
             team_df = self.my_team  # Default to current team if no argument is given
 
         total_form = 0
-        for day in range(2, 8):  # Days 1-7
+        for day in range(1, 8):  # Days 1-7
             playing_players = self.get_playing_players(team_df, day)
 
             if len(playing_players) > 0:
@@ -105,7 +111,7 @@ class FantasyOptimizer:
                     new_form = self.get_weekly_form(team_df=new_team)
                     new_salary = new_team["Salary"].sum()
 
-                    if new_salary > max_salary + 0.1:
+                    if new_salary > max_salary:
                         continue  
 
                     front_count = new_team["Pos"].value_counts().get("front", 0)
@@ -149,7 +155,7 @@ class FantasyOptimizer:
 
         # Compute current total form and salary
         current_form = self.my_team["Form"].sum()
-        current_salary = self.my_team["$"].sum()+extra_salary
+        current_salary = self.my_team["$"].sum()
 
         # Only consider top 50 players by form instead of all
         available_players = self.best_filter[~self.best_filter["Player"].isin(self.my_team["Player"])].copy()
@@ -174,7 +180,7 @@ class FantasyOptimizer:
                 # Filter replacements by position and salary
                 valid_replacements = available_players[
                     (available_players["Pos"].isin(needed_pos)) & 
-                    (available_players["$"] <= available_salary)
+                    (available_players["$"] <= available_salary + extra_salary)
                 ].sort_values(by="Form", ascending=False).head(20)  # Further limit to top 20
 
                 # Try all possible replacement combinations
@@ -190,7 +196,7 @@ class FantasyOptimizer:
 
                     if (new_team["Pos"].value_counts().get("front", 0) == 5 and 
                         new_team["Pos"].value_counts().get("back", 0) == 5 and
-                        new_salary <= current_salary):  # Ensure salary cap is respected
+                        new_salary <= current_salary + extra_salary):  # Ensure salary cap is respected
 
                         if new_form > best_form:
                             best_team = new_team.copy()

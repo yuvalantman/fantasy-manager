@@ -38,9 +38,9 @@ def set_user_team():
     data = request.get_json()
     user_team = data.get("user_team", [])
     extra_salary = float(data.get("extra_salary", 0))
-
-    # Retrieve the session data
-    updated_players_json = session.get("updated_players_df", "[]")
+    updated_players_json = full_players_df.copy()
+    
+    
 
     # Only deserialize if it's a string
     if isinstance(updated_players_json, str):
@@ -61,6 +61,9 @@ def set_user_team():
     else:
         print("❌ ERROR: Updated players data is not a list of dictionaries.")
         return jsonify({"error": "Data format issue"}), 500
+    
+    for player in user_team:
+        updated_players_df.loc[updated_players_df["Player"] == player["Player"], "$"] = player["$"]
 
     # Match players from session data
     for player in user_team:
