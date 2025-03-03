@@ -2,6 +2,7 @@ import pandas as pd
 import itertools
 from itertools import combinations
 import heapq
+from numba import jit
 
 class FantasyOptimizer:
     def __init__(self, my_team, best_filter_path, schedule_path):
@@ -55,6 +56,8 @@ class FantasyOptimizer:
         total_form = 0
         for day in range(1, 8):  # Days 1-7
             playing_players = self.get_playing_players(team_df, day)
+            if (playing_players is None or playing_players.empty):
+                continue
 
             if len(playing_players) > 0:
                 back_players = playing_players[playing_players["Pos"] == "back"]
@@ -71,6 +74,7 @@ class FantasyOptimizer:
                 daily_form = top_players["Form"].sum()
 
                 total_form += daily_form  # Sum up daily forms
+
 
         return total_form
     
@@ -98,7 +102,10 @@ class FantasyOptimizer:
             else:
                 weekly_sched[day] = []
         return weekly_sched
-
+    @jit(nopython=True)  # 🔹 This will make it much faster!
+    def compute_form_gain(out_form, in_form):
+        return in_form - out_form
+    
     def find_best_weekly_substitutions(self, extra_salary=0):
         """Finds the best 1-2 substitutions to improve weekly form, considering extra salary."""
         # Ensure salary is handled correctly
@@ -119,6 +126,7 @@ class FantasyOptimizer:
         best_weekly_form = current_weekly_form
         best_salary = current_salary
         best_out, best_in = [], []
+        batch_size = 10
 
         for num_swaps in [1, 2]:
             for out_players in itertools.combinations(self.my_team.itertuples(index=False, name="PlayerTuple"), num_swaps):
@@ -133,35 +141,34 @@ class FantasyOptimizer:
                 ].sort_values(by="Form", ascending=False).head(20)
                 if (len(valid_replacements) < num_swaps):
                     continue
+                for i in range(0, len(valid_replacements), batch_size):
+                    batch = valid_replacements.iloc[i:i + batch_size]
+                    for in_players in itertools.combinations(batch.itertuples(index=False, name="PlayerTuple"), num_swaps):
+                        in_list = list(in_players)
+                        if not in_list:
+                            continue  
 
-                for in_players in itertools.combinations(valid_replacements.itertuples(index=False, name="PlayerTuple"), num_swaps):
-                    in_list = list(in_players)
-                    if not in_list:
-                        continue  
+                        in_dicts = [p._asdict() for p in in_list]
+                        current_pos = [p["Pos"] for p in in_dicts]
+                        if sorted(current_pos) != sorted(needed_pos):
+                            continue
 
-                    in_dicts = [p._asdict() for p in in_list]
+                        new_team = self.my_team[~self.my_team["Player"].isin([p["Player"] for p in out_dicts])].copy()
+                        new_team = pd.concat([new_team, pd.DataFrame(in_dicts, columns=self.my_team.columns)], ignore_index=True)
 
-                    new_team = self.my_team[~self.my_team["Player"].isin([p["Player"] for p in out_dicts])].copy()
-                    new_team = pd.concat([new_team, pd.DataFrame(in_dicts, columns=self.my_team.columns)], ignore_index=True)
+                        new_salary = new_team["Salary"].sum()
 
-                    new_salary = new_team["Salary"].sum()
+                        if new_salary > max_salary:
+                            continue  
 
-                    if new_salary > max_salary:
-                        continue  
+                        new_form = self.get_weekly_form(team_df=new_team)
 
-                    front_count = new_team["Pos"].value_counts().get("front", 0)
-                    back_count = new_team["Pos"].value_counts().get("back", 0)
-
-                    if front_count != 5 or back_count != 5:
-                        continue  
-                    new_form = self.get_weekly_form(team_df=new_team)
-
-                    if new_form > best_weekly_form or (new_form == best_weekly_form and new_salary < best_salary):
-                        best_team = new_team.copy()
-                        best_weekly_form = new_form
-                        best_salary = new_salary
-                        best_out = [p["Player"] for p in out_dicts]
-                        best_in = [p["Player"] for p in in_dicts]
+                        if new_form > best_weekly_form or (new_form == best_weekly_form and new_salary < best_salary):
+                            best_team = new_team.copy()
+                            best_weekly_form = new_form
+                            best_salary = new_salary
+                            best_out = [p["Player"] for p in out_dicts]
+                            best_in = [p["Player"] for p in in_dicts]
         weekly_sched = self.print_weekly_form(best_team)
         print(f"🔵 Current Weekly Form: {current_weekly_form}, Salary: {current_salary}")
         print(f"🟢 New Weekly Form: {best_weekly_form}, Salary: {best_salary}")
@@ -210,26 +217,29 @@ class FantasyOptimizer:
             "BB": [], # 2-player back swaps
             "FB": []  # 2-player mixed swaps
         }
+        batch_size = 10
 
         for num_swaps in [1, 2]:
-            for in_players in itertools.combinations(available_players.itertuples(index=False, name="PlayerTuple"), num_swaps):
-                in_df = pd.DataFrame(in_players, columns=self.my_team.columns)
-                form_sum = in_df["Form"].sum()
-                salary_sum = in_df["Salary"].sum()
+            for i in range(0, len(available_players), batch_size):
+                batch = available_players.iloc[i:i + batch_size]
+                for in_players in itertools.combinations(batch.itertuples(index=False, name="PlayerTuple"), num_swaps):
+                    in_df = pd.DataFrame(in_players, columns=self.my_team.columns)
+                    form_sum = in_df["Form"].sum()
+                    salary_sum = in_df["Salary"].sum()
 
-                # Categorize by position
-                if num_swaps == 1:
-                    key = "1"
-                else:
-                    pos_tuple = tuple(sorted(p.Pos for p in in_players))
-                    if pos_tuple == ("front", "front"):
-                        key = "FF"
-                    elif pos_tuple == ("back", "back"):
-                        key = "BB"
+                    # Categorize by position
+                    if num_swaps == 1:
+                        key = "1"
                     else:
-                        key = "FB"
+                        pos_tuple = tuple(sorted(p.Pos for p in in_players))
+                        if pos_tuple == ("front", "front"):
+                            key = "FF"
+                        elif pos_tuple == ("back", "back"):
+                            key = "BB"
+                        else:
+                            key = "FB"
 
-                available_combos[key].append((form_sum, salary_sum, in_df))
+                    available_combos[key].append((form_sum, salary_sum, in_df))
 
         # **Step 2: Sort each category by salary (ascending)**
         for key in available_combos:
@@ -267,7 +277,8 @@ class FantasyOptimizer:
                 form_sum, salary_sum, in_df = best_form_swap
 
                 # **Step 7: Compute form gain EARLY (before creating new team)**
-                form_gain = form_sum - sum(player.Form for player in out_list)
+                form_gain = self.compute_form_gain(sum(player.Form for player in out_list), form_sum)
+
 
                 # If form gain is NOT better than `min_top_form`, skip early
                 if len(top_swaps) >= top_n and form_gain <= min_top_form:

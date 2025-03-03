@@ -167,4 +167,5 @@ def compute_result():
     return jsonify({"error": "⚠️ Invalid option selected."})
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    from waitress import serve  # Use Waitress instead of Gunicorn for better performance
+    serve(app, host="0.0.0.0", port=5000, threads=4)

@@ -5,3 +5,5 @@ numpy
 flask-session
 html5lib
 lxml
+waitress
+numba
