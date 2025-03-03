@@ -103,6 +103,80 @@ button:hover {
 
 @keyframes spin {
     to {
-      transform: rotate(360deg);
+        transform: rotate(360deg);
+    }
+}
+/* 🔄 Best Total Substitutions Section */
+#total_substitutions_section {
+    background-color: #ffffff; /* Match existing #result background */
+    border: 2px solid #ddd; /* Consistent with #result */
+    padding: 15px;
+    margin-top: 15px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Soft shadow */
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+}
+
+/* 💡 Substitution Plan Header */
+#total_substitutions_section h4 {
+    color: #0033a0; /* Match your theme */
+    font-size: 20px;
+    margin-bottom: 10px;
+}
+
+/* 📝 Substitution Content */
+#total_substitutions_content {
+    text-align: left;
+    margin-bottom: 10px;
+    font-size: 16px;
+}
+
+/* ✅ Player Entry Styling */
+#total_substitutions_content p {
+    margin: 5px 0;
+    padding: 5px 8px;
+    background: #f5f5f5; /* Light background for readability */
+    border-radius: 5px;
+    box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* ⬅️➡️ Navigation Buttons */
+#prev_substitution,
+#next_substitution {
+    background-color: #0033a0; /* Match existing button color */
+    color: white;
+    border: none;
+    padding: 10px;
+    font-size: 16px;
+    cursor: pointer;
+    margin: 5px;
+    border-radius: 5px;
+    transition: background 0.3s ease;
+}
+
+#prev_substitution:hover,
+#next_substitution:hover {
+    background-color: #e50914; /* Match button hover color */
+}
+
+/* 🛑 Disable Navigation Buttons When Necessary */
+#prev_substitution:disabled,
+#next_substitution:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+/* 📱 Mobile Responsiveness */
+@media (max-width: 600px) {
+    #total_substitutions_section {
+        max-width: 90%;
+    }
+
+    #prev_substitution,
+    #next_substitution {
+        width: 100px;
     }
 }

@@ -3,3 +3,5 @@ flask
 pandas
 numpy
 flask-session
+html5lib
+lxml
