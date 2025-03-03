@@ -8,7 +8,7 @@
     <script>
         document.addEventListener("DOMContentLoaded", function() { 
             generatePlayerInputs();
-            setupOptionListeners();
+            setupMenuNavigation();
         });
         
 
@@ -25,6 +25,17 @@
                 `;
                 container.appendChild(div);
             }
+        }
+        function setupMenuNavigation() {
+            document.querySelectorAll(".menu-item").forEach(item => {
+                item.addEventListener("click", function() {
+                    let sectionToShow = this.dataset.section;
+                    document.querySelectorAll(".section").forEach(sec => {
+                        sec.style.display = "none";
+                    });
+                    document.getElementById(sectionToShow).style.display = "block";
+                });
+            });
         }
 
         async function autocompletePlayer(input) {
@@ -100,180 +111,172 @@
                 });
             });
         }
+        async function fetchWeeklySchedule() {
+            let response = await fetch("/print_weekly_schedule", { method: "POST" });
+            let data = await response.json();
+            
+            let scheduleDiv = document.getElementById("team_weekly_schedule_content");
+            scheduleDiv.innerHTML = "";
+
+            if (data.error) {
+                scheduleDiv.innerHTML = `<p style='color: red;'>${data.error}</p>`;
+                return;
+            }
+
+            let tableHTML = `<table border="1" style="border-collapse: collapse; width: 100%; text-align: center;">
+                                <thead>
+                                    <tr>
+                                        <th>Monday</th>
+                                        <th>Tuesday</th>
+                                        <th>Wednesday</th>
+                                        <th>Thursday</th>
+                                        <th>Friday</th>
+                                        <th>Saturday</th>
+                                        <th>Sunday</th>
+                                    </tr>
+                                </thead>
+                                <tbody>`;
+            
+            let maxRows = Math.max(...Object.values(data.weekly_schedule).map(day => day.length));
+            for (let row = 0; row < maxRows; row++) {
+                tableHTML += "<tr>";
+                for (let day = 1; day <= 7; day++) {
+                    let dayData = data.weekly_schedule[day] || [];
+                    tableHTML += row < dayData.length ? `<td>${dayData[row]}</td>` : "<td></td>";
+                }
+                tableHTML += "</tr>";
+            }
+            tableHTML += "</tbody></table>";
+            scheduleDiv.innerHTML = tableHTML;
+        }
 
         let totalSubstitutions = [];
         let currentSubIndex = 0;
 
-        function displaySubstitution(index) {
-            if (totalSubstitutions.length === 0) return;
+        function displaySubstitution(index, substitutions, contentDivId) {
+            if (substitutions.length === 0) return;
 
-            let swap = totalSubstitutions[index];
-            let contentDiv = document.getElementById("total_substitutions_content");
+            let swap = substitutions[index];
+            let contentDiv = document.getElementById(contentDivId);
 
-            contentDiv.innerHTML = `
-                <h5>💡 Substitution Plan ${index + 1} of ${totalSubstitutions.length}</h5>
-                <p><strong>Form Gain:</strong> ${swap.form_gain}</p>
-                <p><strong>New Salary:</strong> $${swap.new_salary}</p>
-                <p><strong>Players Out:</strong> ${swap.substitutions_out.join(", ")}</p>
-                <p><strong>Players In:</strong> ${swap.substitutions_in.join(", ")}</p>
-                <h4>✅ New Team</h4>
-                ${swap.new_team.map(player => `<p>${player.Player} - ${player.team} ($${player.Salary}) (Form - ${player.Form})</p>`).join("")}
-            `;
-
-            // Show/Hide navigation buttons
-            document.getElementById("prev_substitution").style.display = (index > 0) ? "inline-block" : "none";
-            document.getElementById("next_substitution").style.display = (index < totalSubstitutions.length - 1) ? "inline-block" : "none";
-        }
-
-        function changeSubstitution(direction) {
-            currentSubIndex += direction;
-            displaySubstitution(currentSubIndex);
-        }
-
-        async function computeResult() {
-            let option = document.querySelector('input[name="option"]:checked').value;
-            let salaryCapInput = document.getElementById("salary_cap").value.trim();
-            let salaryCap = salaryCapInput ? parseFloat(salaryCapInput) : 100;  
-
-            let subType = "";
-            let topN = 5;
-            if (option === "best_substitutions") {
-                let selectedSubType = document.querySelector('input[name="sub_type"]:checked');
-                if (!selectedSubType) {
-                    alert("⚠️ Please select Weekly or Total for Substitutions.");
-                    return;
-                }
-                subType = selectedSubType.value;
-                if (subType === "total") {
-                    let topNInput = document.getElementById("top_n").value.trim();
-                    topN = topNInput ? parseInt(topNInput) : 5;
-                }
+            if (contentDivId === "weekly_subs_result") {
+                contentDiv.innerHTML = `
+                    <h5>💡 Substitution Plan ${index + 1} of ${substitutions.length}</h5>
+                    <p><strong>Current Form:</strong> ${swap.current_form}</p>
+                    <p><strong>New weekly Form:</strong> ${swap.new_form}</p>
+                    <p><strong>New Salary:</strong> $${swap.new_salary}</p>
+                    <p><strong>Players Out:</strong> ${swap.substitutions_out.join(", ")}</p>
+                    <p><strong>Players In:</strong> ${swap.substitutions_in.join(", ")}</p>
+                    <h4>✅ New Team</h4>
+                    ${swap.new_team.map(player => `<p>${player.Player} - ${player.team} ($${player.Salary}) (Form - ${player.Form})</p>`).join("")}
+                `;
+                contentDiv.innerHTML += `<button onclick="showWeeklySchedule(${index}, ${JSON.stringify(swap.weekly_sched)})">View Weekly Schedule</button>
+                <div id="weekly_schedule_${index}" class="weekly-schedule" style="display: none;"></div>`;
+            }
+            else{
+                contentDiv.innerHTML = `
+                    <h5>💡 Substitution Plan ${index + 1} of ${substitutions.length}</h5>
+                    <p><strong>Current Form:</strong> ${swap.current_form}</p>
+                    <p><strong>Form Gain:</strong> ${swap.form_gain}</p>
+                    <p><strong>New Salary:</strong> $${swap.new_salary}</p>
+                    <p><strong>Players Out:</strong> ${swap.substitutions_out.join(", ")}</p>
+                    <p><strong>Players In:</strong> ${swap.substitutions_in.join(", ")}</p>
+                    <h4>✅ New Team</h4>
+                    ${swap.new_team.map(player => `<p>${player.Player} - ${player.team} ($${player.Salary}) (Form - ${player.Form})</p>`).join("")}
+                `;
             }
 
-            let resultDiv = document.getElementById("result");
-            resultDiv.innerHTML = "<h3>⏳ Finding your best subs...</h3><div class='spinner'></div>";
+            document.getElementById("prev_substitution").style.display = (index > 0) ? "inline-block" : "none";
+            document.getElementById("next_substitution").style.display = (index < substitutions.length - 1) ? "inline-block" : "none";
+        }
 
-            try {
-                let response = await fetch("/compute_result", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ 
-                        option: option, 
-                        sub_type: subType, 
-                        salary_cap: salaryCap,
-                        top_n: topN 
-                    })
-                });
+        function changeSubstitution(direction, substitutions, contentDivId) {
+            currentSubIndex += direction;
+            displaySubstitution(currentSubIndex, substitutions, contentDivId);
+        }
 
-                if (!response.ok) {
-                    throw new Error(`Server Error: ${response.status} ${response.statusText}`);
-                }
+        function displayWeeklySubstitutions(substitutions) {
+            totalSubstitutions = substitutions;
+            currentSubIndex = 0;
+            displaySubstitution(currentSubIndex, totalSubstitutions, "weekly_subs_result");
+        }
 
-                let data = await response.json();
-                console.log("📢 Received Response:", data);
+        function displayTotalSubstitutions(substitutions) {
+            totalSubstitutions = substitutions;
+            currentSubIndex = 0;
+            displaySubstitution(currentSubIndex, totalSubstitutions, "total_subs_result");
+        }
 
-                resultDiv.innerHTML = "<h3>Results:</h3>";
-
-                if (data.error) {
-                    resultDiv.innerHTML = `<p style="color: red;">${data.error}</p>`;
-                    return;
-                }
-
-                if (data.best_team) {
-                    // Best Team Response
-                    resultDiv.innerHTML += "<h4>🏆 Best Team</h4>";
-                    data.best_team.forEach(player => {
-                        resultDiv.innerHTML += `<p>${player.Player} - ${player.team} ($${player.$})</p>`;
-                    });
-                    resultDiv.innerHTML += `<p><strong>Total Form:</strong> ${data.total_form}</p>`;
-                    resultDiv.innerHTML += `<p><strong>Total Price:</strong> $${data.total_price}</p>`;
-                } 
-                else if (subType === "weekly" && "weekly_sched" in data && typeof data.weekly_sched === "object" && Object.keys(data.weekly_sched).length > 0) {
-                    console.log("📢 Weekly Schedule Found:", data.weekly_sched);
-
-                    resultDiv.innerHTML += "<h4>🏆 Best Team</h4>";
-
-                    // ✅ Add Players In and Out
-                    if ("substitutions_out" in data && "substitutions_in" in data) {
-                        resultDiv.innerHTML += `<h4>❌ Players Out:</h4><p>${data.substitutions_out.join(", ")}</p>`;
-                        resultDiv.innerHTML += `<h4>✅ Players In:</h4><p>${data.substitutions_in.join(", ")}</p>`;
-                    }
-
-                    // ✅ Add Full Team with Salary and Form
-                    if ("new_team" in data && Array.isArray(data.new_team) && data.new_team.length > 0) {
-                        resultDiv.innerHTML += "<h4>📋 Full Team:</h4><ul>";
-                        data.new_team.forEach(player => {
-                            resultDiv.innerHTML += `<p>${player.Player} - ${player.team} ($${player.Salary}) (Form: ${player.Form})</p>`;
-                        });
-                        resultDiv.innerHTML += "</ul>";
-                    }
-
-                    // ✅ Ensure Weekly Schedule Section Exists Before Modifying It
-                    setTimeout(() => {
-                        let weeklyScheduleSection = document.getElementById("weekly_schedule_section");
-                        let weeklyScheduleContent = document.getElementById("weekly_schedule_content");
-
-                        if (weeklyScheduleSection && weeklyScheduleContent) {
-                            weeklyScheduleSection.style.display = "block"; // ✅ Ensure it is visible
-                            weeklyScheduleContent.innerHTML = "<h4>📅 Weekly Schedule:</h4>";
-
-                            let tableHTML = `<table border="1" style="border-collapse: collapse; width: 100%; text-align: center;">
-                                                <thead>
-                                                    <tr>
-                                                        <th>Monday</th>
-                                                        <th>Tuesday</th>
-                                                        <th>Wednesday</th>
-                                                        <th>Thursday</th>
-                                                        <th>Friday</th>
-                                                        <th>Saturday</th>
-                                                        <th>Sunday</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>`;
-
-                            let maxRows = Math.max(...Object.values(data.weekly_sched).map(day => day.length));
-
-                            for (let row = 0; row < maxRows; row++) {
-                                tableHTML += "<tr>";
-                                for (let day = 1; day <= 7; day++) {
-                                    let dayData = data.weekly_sched[day] || [];
-                                    if (row < dayData.length) {
-                                        tableHTML += `<td>${dayData[row].Player} (${dayData[row].Form})</td>`;
-                                    } else {
-                                        tableHTML += "<td></td>";
-                                    }
-                                }
-                                tableHTML += "</tr>";
-                            }
-
-                            tableHTML += "</tbody></table>";
-                            weeklyScheduleContent.innerHTML += tableHTML;
+        function showWeeklySchedule(index, scheduleData) {
+            let scheduleDiv = document.getElementById(`weekly_schedule_${index}`);
+            if (scheduleDiv.innerHTML === "") {
+                let tableHTML = `<table border="1" style="border-collapse: collapse; width: 100%; text-align: center;">
+                                    <thead>
+                                        <tr>
+                                            <th>Monday</th>
+                                            <th>Tuesday</th>
+                                            <th>Wednesday</th>
+                                            <th>Thursday</th>
+                                            <th>Friday</th>
+                                            <th>Saturday</th>
+                                            <th>Sunday</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>`;
+                
+                let maxRows = Math.max(...Object.values(scheduleData).map(day => day.length));
+                for (let row = 0; row < maxRows; row++) {
+                    tableHTML += "<tr>";
+                    for (let day = 1; day <= 7; day++) {
+                        let dayData = scheduleData[day] || [];
+                        if (row < dayData.length-1) {
+                            tableHTML += `<td>${dayData[row].Player} (${dayData[row].Form})</td>`;
                         } else {
-                            console.warn("⚠️ 'weekly_schedule_section' or 'weekly_schedule_content' not found in DOM!");
+                            tableHTML += `<td>${dayData[row]}</td>`;
+                            tableHTML += "<td></td>";
                         }
-                    }, 100); // Small delay to ensure DOM is updated
-                }
-
-
-                else if (subType === "total" && "top_substitutions" in data && Array.isArray(data.top_substitutions) && data.top_substitutions.length > 0) {
-                    // Best Total Substitutions (Menu Format)
-                    totalSubstitutions = data.top_substitutions;
-                    currentSubIndex = 0;
-
-                    let totalSubsSection = document.getElementById("total_substitutions_section");
-                    if (totalSubsSection) {
-                        totalSubsSection.style.display = "block";
-                        displaySubstitution(currentSubIndex);
-                    } else {
-                        console.warn("⚠️ Element 'total_substitutions_section' not found in DOM!");
                     }
-                } 
-                else {
-                    resultDiv.innerHTML += `<p style="color: red;">⚠️ No valid substitutions found.</p>`;
+                    tableHTML += "</tr>";
                 }
-            } catch (error) {
-                console.error("❌ Error in computeResult():", error);
-                resultDiv.innerHTML = `<p style="color: red;">❌ An error occurred while computing results: ${error.message}</p>`;
+                tableHTML += "</tbody></table>";
+                scheduleDiv.innerHTML = tableHTML;
+            }
+            scheduleDiv.style.display = scheduleDiv.style.display === "none" ? "block" : "none";
+        }
+
+        async function computeResult(option, top_n = 5) {
+            let salaryCapInput = document.getElementById("salary_cap");
+            let salaryCap = salaryCapInput ? parseFloat(salaryCapInput.value) : 100;
+            
+            let response = await fetch("/compute_result", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ option, salary_cap: salaryCap, top_n })
+            });
+
+            let data = await response.json();
+            let resultDiv = document.getElementById(option + "_result");
+            resultDiv.innerHTML = "";
+
+            if (data.error) {
+                resultDiv.innerHTML = `<p style="color: red;">${data.error}</p>`;
+                return;
+            }
+
+            if (option === "best_team") {
+                resultDiv.innerHTML += `<h4>🏆 Best Team</h4>`;
+                data.best_team.forEach(player => {
+                    resultDiv.innerHTML += `<p>${player.Player} - ${player.team} ($${player.$})</p>`;
+                });
+                resultDiv.innerHTML += `<p><strong>Total Form:</strong> ${data.total_form}</p>`;
+                resultDiv.innerHTML += `<p><strong>Total Price:</strong> $${data.total_price}</p>`;
+            }
+
+            else if (option === "best_weekly_subs") {
+                displayWeeklySubstitutions(data.top_substitutions);
+            }
+            else if (option === "best_total_subs") {
+                displayTotalSubstitutions(data.top_substitutions);
             }
         }
 
@@ -286,40 +289,42 @@
     <input type="number" id="extra_salary" placeholder="Extra Salary">
     <button onclick="setUserTeam()">Save Team</button>
 
-    <div id="next_step" style="display: none;">
-        <h2>Select an Option</h2>
-        <label><input type="radio" name="option" value="best_team" checked> 🏆 Best Team</label>
-        <label><input type="radio" name="option" value="best_substitutions"> 🔄 Best Substitutions</label>
+    <!-- Menu for different sections -->
+    <nav>
+        <button class="menu-item" data-section="best_team_section">🏆 Best Team</button>
+        <button class="menu-item" data-section="total_subs_section">🔄 Best Total Subs</button>
+        <button class="menu-item" data-section="weekly_subs_section">📅 Best Weekly Subs</button>
+        <button class="menu-item" data-section="team_schedule_section">🗓️ Check My Team Schedule</button>
+    </nav>
 
-        <!-- Substitutions Choice (Initially Hidden) -->
-        <div id="sub_options" style="display: none;">
-            <h3>Substitutions Type</h3>
-            <label><input type="radio" name="sub_type" value="weekly" checked> 📅 Weekly</label>
-            <label><input type="radio" name="sub_type" value="total"> 🔢 Total</label>
-            <div id="top_n_input" style="display: none;">
-                <label for="top_n">🔝 Number of Top Substitutions:</label>
-                <input type="number" id="top_n" name="top_n" min="1" value="5">
-            </div>
-        </div>
-
-        <!-- Salary Cap Input -->
-        <label for="salary_cap">💰 Salary Cap:</label>
-        <input type="number" id="salary_cap" name="salary_cap" step="0.1" placeholder="Enter Salary Cap">
-
-        <button onclick="computeResult()">🔍 Compute</button>
+    <!-- Sections (Hidden by Default) -->
+    <div id="best_team_section" class="section" style="display: none;">
+        <h2>🏆 Best Team</h2>
+        <button onclick="computeResult('best_team')">Find Best Team</button>
+        <div id="best_team_result"></div>
     </div>
 
-    <div id="result"></div>
-    <div id="weekly_schedule_section" style="display: none;">
-            <h4>📅 Weekly Schedule</h4>
-            <div id="weekly_schedule_content"></div>
-        </div>
-        
-        <div id="total_substitutions_section" style="display: none;">
-            <h4>🔄 Best Total Substitutions</h4>
-            <div id="total_substitutions_content"></div>
-            <button id="prev_substitution" style="display: none;" onclick="changeSubstitution(-1)">⬅️ Previous</button>
-            <button id="next_substitution" style="display: none;" onclick="changeSubstitution(1)">Next ➡️</button>
-        </div> 
+    <div id="total_subs_section" class="section" style="display: none;">
+        <h2>🔄 Best Total Substitutions</h2>
+        <button onclick="computeResult('best_total_subs')">Find Best Total Subs</button>
+        <div id="total_subs_result"></div>
+        <button id="prev_total_sub" style="display: none;" onclick="changeSubstitution(-1, totalSubstitutions, 'total_subs_result')">⬅️ Previous</button>
+        <button id="next_total_sub" style="display: none;" onclick="changeSubstitution(1, totalSubstitutions, 'total_subs_result')">Next ➡️</button>
+    </div>
+
+    <div id="weekly_subs_section" class="section" style="display: none;">
+        <h2>📅 Best Weekly Substitutions</h2>
+        <button onclick="computeResult('best_weekly_subs')">Find Best Weekly Subs</button>
+        <div id="weekly_subs_result"></div>
+        <button id="prev_weekly_sub" style="display: none;" onclick="changeSubstitution(-1, totalSubstitutions, 'weekly_subs_result')">⬅️ Previous</button>
+        <button id="next_weekly_sub" style="display: none;" onclick="changeSubstitution(1, totalSubstitutions, 'weekly_subs_result')">Next ➡️</button>
+    </div>
+
+    <div id="team_schedule_section" class="section" style="display: none;">
+        <h2>🗓️ My Team Weekly Schedule</h2>
+        <button onclick="fetchWeeklySchedule()">View My Team's Weekly Schedule</button>
+        <div id="team_weekly_schedule_content"></div>
+    </div>
 </body>
+
 </html>
