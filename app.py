@@ -51,6 +51,13 @@ def autocomplete():
     suggestions = full_players_df[full_players_df["Player"].str.lower().str.contains(query, na=False)]
     return jsonify(suggestions["Player"].tolist())
 
+@app.before_request
+def reset_session_if_needed():
+    """Clears session-stored data if no user team exists."""
+    if "user_team" not in session:  # No user team? Reset stored players
+        session.pop("updated_players_df", None)
+
+
 @app.route("/set_user_team", methods=["POST"])
 def set_user_team():
     data = request.get_json()
@@ -94,23 +101,21 @@ def compute_result():
     sub_type = data.get("sub_type", "weekly")
     salary_cap = float(data.get("salary_cap", 100))
     top_n = int(data.get("top_n", 5))
-    print(f"📢 Salary Cap Received: {salary_cap}")
-    print("📢 Compute Request Received:", data)
-    #print("📢 Session Data (user_team):", session.get("user_team"))
-    #print("📢 Session Data (updated_players_df):", session.get("updated_players_df"))
 
+    print(f"📢 Compute Request: {data}")
     user_team_data = session.get("user_team")
     extra_salary = float(session.get("extra_salary", 0))
-    updated_players_data = session.get("updated_players_df")
+    if "user_team" in session and session.get("updated_players_df") is not None:
+        updated_players_data = pd.DataFrame(session["updated_players_df"])
+    else:
+        updated_players_data = full_players_df.copy()  # Use fresh dataset if no user team exists
 
+    # **Fix missing/empty DataFrame cases**
     if updated_players_data.empty:
-        print("❌ ERROR: updated players missing.")
-        return jsonify({"error": "⚠️ User team is missing. Please enter your team first."}), 400
-    if not user_team_data:
-        best_team = get_best_team(salary_cap)
-        return jsonify({"best_team": best_team.to_dict(orient='records'),
-                        "total_form": best_team["Form"].sum().round(1),
-                        "total_price": best_team["$"].sum().round(1)})
+        print("❌ ERROR: No valid dataset found. Using original dataset.")
+        updated_players_data = full_players_df.copy()
+
+    response_data = {}
 
     user_team = pd.DataFrame(user_team_data)
     user_team = user_team[["Player", "$", "Form", "TP.", "Pos","team"]]
@@ -118,74 +123,47 @@ def compute_result():
     updated_players_df = updated_players_df[["Player", "$", "Form", "TP.", "Pos","team"]]
 
     if option == "best_team":
-        team_finder = BestTeamFinder(updated_players_df, salary_cap)
-        best_team = team_finder.find_best_team()
+        # ✅ Allow running best team even if no team was entered
+        best_team_finder = BestTeamFinder(pd.DataFrame(updated_players_data), salary_cap)
+        best_team = best_team_finder.find_best_team()
 
         if best_team is None or best_team.empty:
-            return jsonify({"error": "⚠️ No valid team found within the given salary cap."})
+            return jsonify({"error": "⚠️ No valid team found."})
 
-        response = {
+        response_data = {
             "best_team": best_team.to_dict(orient="records"),
             "total_form": best_team["Form"].sum().round(1),
             "total_price": best_team["$"].sum().round(1)
         }
-        response = replace_nan_with_none(response)
-        print("📢 Sending Response:", response)
-        return jsonify(response)
+        return jsonify(response_data)
 
     elif option == "best_substitutions":
-        optimizer = FantasyOptimizer(user_team, updated_players_df, SCHEDULE_CSV)
+        if not user_team_data:
+            return jsonify({"error": "⚠️ Please enter your team first!"})
 
-        if sub_type == "weekly":
-            top_weekly_swaps = optimizer.find_best_weekly_substitutions(extra_salary, top_n)
-            if not top_weekly_swaps:
-                return jsonify({"error": "⚠️ No valid substitutions found."})
-            response = {"top_substitutions": []}
-            for  new_form,current_form, new_salary, subs_out, subs_in, new_team, weekly_sched in top_weekly_swaps:
-                response["top_substitutions"].append({
-                    "current_form": current_form,
-                    "new_form": new_form,
-                    "new_salary": new_salary,
-                    "substitutions_out": subs_out,
-                    "substitutions_in": subs_in,
-                    "new_team": new_team.to_dict(orient='records'),
-                    "weekly_sched": weekly_sched
-                })
-            response = replace_nan_with_none(response)
-            print("📢 Sending Response:", response)  # ✅ Debug Flask Response
-            return jsonify(response)
-        else:
-            top_total_swaps = optimizer.find_best_total_substitutions(extra_salary, top_n)
+        optimizer = FantasyOptimizer(pd.DataFrame(user_team_data), pd.DataFrame(updated_players_data), SCHEDULE_CSV)
+        best_swaps = optimizer.find_best_weekly_substitutions(extra_salary, top_n) if sub_type == "weekly" else optimizer.find_best_total_substitutions(extra_salary, top_n)
 
-            if not top_total_swaps:
-                return jsonify({"error": "⚠️ No valid substitutions found."})
+        if not best_swaps:
+            return jsonify({"error": "⚠️ No valid substitutions found."})
 
-            response = {"top_substitutions": []}
-            for form_gain, new_form, current_form, new_salary, subs_out, subs_in, new_team in top_total_swaps:
-                response["top_substitutions"].append({
-                    "form_gain": form_gain,
-                    "new_form": new_form,
-                    "current_form": current_form,
-                    "new_salary": new_salary,
-                    "substitutions_out": subs_out,
-                    "substitutions_in": subs_in,
-                    "new_team": new_team.to_dict(orient='records')
-                })
-            return jsonify(replace_nan_with_none(response))
+        response_data["top_substitutions"] = [swap._asdict() for swap in best_swaps]
+        return jsonify(response_data)
 
     return jsonify({"error": "⚠️ Invalid option selected."})
 
-@app.route("/print_weekly_form", methods=["POST"])
-def print_weekly_form():
+@app.route("/print_weekly_schedule", methods=["POST"])
+def print_weekly_schedule():
     user_team_data = session.get("user_team")
+
     if not user_team_data:
-        return jsonify({"error": "User team is missing!"}), 400
-    
+        return jsonify({"error": "⚠️ No team has been entered yet!"})
+
     user_team = pd.DataFrame(user_team_data)
-    optimizer = FantasyOptimizer(user_team, FULL_PLAYERS_CSV, SCHEDULE_CSV)
+    optimizer = FantasyOptimizer(user_team, full_players_df, SCHEDULE_CSV)
     weekly_schedule = optimizer.print_weekly_form()
 
-    return jsonify({"weekly_schedule": weekly_schedule.to_dict(orient='records')})
+    return jsonify({"weekly_schedule": weekly_schedule})
 
 if __name__ == "__main__":
     from waitress import serve  # Use Waitress instead of Gunicorn for better performance

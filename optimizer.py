@@ -134,7 +134,8 @@ class FantasyOptimizer:
             for i in range(0, len(available_players), batch_size):
                 batch = available_players.iloc[i:i + batch_size]
                 for in_players in itertools.combinations(batch.itertuples(index=False, name="PlayerTuple"), num_swaps):
-                    in_df = pd.DataFrame(in_players, columns=self.my_team.columns)
+                    in_df = pd.DataFrame(in_players, columns=[["Unnamed: 0", "Player", "Salary", "Form", "TP.", "Pos", "team"]])
+                    #print(in_df)
                     salary_sum = in_df["Salary"].sum()
 
                     # Categorize by position
@@ -149,7 +150,7 @@ class FantasyOptimizer:
                         else:
                             key = "FB"
 
-                    available_combos[key].append((salary_sum, in_df))
+                    available_combos[key].append((float(salary_sum.iloc[0]), in_df))
 
         # **Step 2: Sort each category by salary (ascending)**
         for key in available_combos:
@@ -175,12 +176,12 @@ class FantasyOptimizer:
                         swap_list = available_combos["FB"]
 
                 # **Step 5: Filter valid swaps by salary**
-                valid_replacements = [swap for swap in swap_list if swap[1] <= available_salary]
+                valid_replacements = [(salary, df) for (salary, df) in swap_list if float(salary) <= available_salary]
                 if not valid_replacements:
                     continue
 
                 for i in range(0, len(valid_replacements), batch_size):
-                    batch = valid_replacements.iloc[i:i + batch_size]
+                    batch = valid_replacements[i:i + batch_size]
                     for in_players in itertools.combinations(batch.itertuples(index=False, name="PlayerTuple"), num_swaps):
                         in_list = list(in_players)
                         if not in_list:
@@ -267,7 +268,7 @@ class FantasyOptimizer:
             for i in range(0, len(available_players), batch_size):
                 batch = available_players.iloc[i:i + batch_size]
                 for in_players in itertools.combinations(batch.itertuples(index=False, name="PlayerTuple"), num_swaps):
-                    in_df = pd.DataFrame(in_players, columns=self.my_team.columns)
+                    in_df = pd.DataFrame(in_players, columns=[["Unnamed: 0", "Player", "Salary", "Form", "TP.", "Pos", "team"]])
                     form_sum = in_df["Form"].sum()
                     salary_sum = in_df["Salary"].sum()
 
@@ -283,7 +284,7 @@ class FantasyOptimizer:
                         else:
                             key = "FB"
 
-                    available_combos[key].append((form_sum, salary_sum, in_df))
+                    available_combos[key].append((float(form_sum), float(salary_sum), in_df))
 
         # **Step 2: Sort each category by salary (ascending)**
         for key in available_combos:
@@ -312,7 +313,7 @@ class FantasyOptimizer:
                         swap_list = available_combos["FB"]
 
                 # **Step 5: Filter valid swaps by salary**
-                valid_swaps = [swap for swap in swap_list if swap[1] <= available_salary]
+                valid_swaps = [(form, salary, df) for (form, salary, df) in swap_list if float(salary) <= available_salary]
                 if not valid_swaps:
                     continue  # Skip if no valid swaps exist
 
