@@ -1,6 +1,7 @@
 import pandas as pd
 from optimizer import FantasyOptimizer
 from best_team_finder import BestTeamFinder
+from data_loader import data_loader
 
 # Paths to CSV files
 FULL_PLAYERS_CSV = "data/top_update_players.csv"  # Full list of players and their actual salaries
@@ -62,7 +63,7 @@ def get_user_team():
     return user_team_df, extra_salary
 
 
-def main():
+def main1():
     """Main menu to allow the user to interact with the fantasy optimizer."""
     print("\n🏀 Welcome to the Fantasy Team Optimizer!")
 
@@ -118,6 +119,9 @@ def main():
         else:
             print("⚠️ Invalid choice, please enter 1, 2, 3, or 4.")
 
+def main():
+    d1 = data_loader()
+    d1.load_teams()
 
 if __name__ == "__main__":
     main()

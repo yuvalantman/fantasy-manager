@@ -1,0 +1,31 @@
+,0,1,2,3,4,5,6,7,8,TeamAgg
+0,Atlanta Hawks,3,-,@,-,-,-,vs,vs,ATL
+1,Boston Celtics,3,-,vs,-,-,@,-,@,BOS
+2,Brooklyn Nets,3,-,@,-,@,-,@,-,BKN
+3,Charlotte Hornets,4,-,vs,-,vs,@,-,@,CHA
+4,Chicago Bulls,4,@W,-,@,@,-,@,-,CHI
+5,Cleveland Cavaliers,4,-,@,@,-,@,-,@,CLE
+6,Dallas Mavericks,2,-,-,@,-,vs,-,-,DAL
+7,Denver Nuggets,4,@W,-,@,-,@,-,@,DEN
+8,Detroit Pistons,4,@W,-,@,-,@,-,vs,DET
+9,Golden State Warriors,4,vsL,vs,-,vs,-,@,-,GSW
+10,Houston Rockets,4,vsW,-,@,-,@,-,vs,HOU
+11,Indiana Pacers,4,@W,-,vs,vs,-,vs,-,IND
+12,LA Clippers,3,-,vs,-,-,vs,-,vs,LAC
+13,Los Angeles Lakers,4,vsW,-,vs,vs,-,vs,-,LAL
+14,Memphis Grizzlies,3,@L,-,@,-,@,-,-,MEM
+15,Miami Heat,4,@L,-,vs,-,vs,-,vs,MIA
+16,Milwaukee Bucks,3,-,@,-,@,-,@,-,MIL
+17,Minnesota Timberwolves,3,vsL,-,vs,-,vs,-,-,MIN
+18,New Orleans Pelicans,4,vsL,-,@,-,@,-,@,NOP
+19,New York Knicks,4,vsW,-,@,@,-,vs,-,NYK
+20,Oklahoma City Thunder,3,-,-,vs,-,vs,-,@,OKC
+21,Orlando Magic,2,-,-,vs,-,@,-,-,ORL
+22,Philadelphia 76ers,4,@L,-,@,-,@,-,@,PHI
+23,Phoenix Suns,3,vsW,-,vs,-,vs,-,-,PHX
+24,Portland Trail Blazers,4,vsW,-,vs,-,vs,-,vs,POR
+25,Sacramento Kings,4,vsW,-,vs,vs,-,vs,-,SAC
+26,San Antonio Spurs,4,@L,-,vs,-,vs,-,@,SAS
+27,Toronto Raptors,3,@L,-,-,@,-,-,vs,TOR
+28,Utah Jazz,4,vsL,-,vs,-,vs,-,vs,UTA
+29,Washington Wizards,4,@L,-,@,-,vs,@,-,WAS

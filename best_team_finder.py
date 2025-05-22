@@ -92,3 +92,85 @@ class BestTeamFinder:
             i -= 1
 
         return pd.DataFrame(selected_players)
+
+
+    def find_best_team1(self):
+        """Finds the best fantasy team using DP optimization."""
+        best_filter = self.best_filter.sort_values(by="Form", ascending=False).reset_index(drop=True)
+        n = len(best_filter)
+        max_w = int(self.max_price * 10)
+
+        dp = np.zeros((2, max_w + 1, 11))
+        choices = np.full((n, max_w + 1, 11), -1)
+        pos_tracker = np.full((2, max_w + 1, 11), None)
+
+        # Initialize base case
+        for w in range(max_w + 1):
+            pos_tracker[0][w][0] = (0, 0)
+
+        for i in range(n):
+            player = best_filter.iloc[i]
+            cost = int(player["$"] * 10)
+            form = player["Form"]
+            pos = player["Pos"]
+
+            curr = i % 2
+            prev = 1 - curr
+
+            for w in range(max_w + 1):
+                for k in range(11):
+                    # Option 1: don't pick player
+                    dp[curr][w][k] = dp[prev][w][k]
+                    choices[i][w][k] = -1
+                    pos_tracker[curr][w][k] = pos_tracker[prev][w][k]
+
+                    # Option 2: try to pick player
+                    if k > 0 and w >= cost:
+                        prev_bf = pos_tracker[prev][w - cost][k - 1]
+                        if prev_bf is None:
+                            continue
+                        backs, fronts = prev_bf
+
+                        if pos == "back" and backs >= 5:
+                            continue
+                        if pos == "front" and fronts >= 5:
+                            continue
+
+                        new_form = dp[prev][w - cost][k - 1] + form
+                        if new_form > dp[curr][w][k]:
+                            dp[curr][w][k] = new_form
+                            choices[i][w][k] = w - cost
+                            if pos == "back":
+                                pos_tracker[curr][w][k] = (backs + 1, fronts)
+                            else:
+                                pos_tracker[curr][w][k] = (backs, fronts + 1)
+
+        # Backtrack
+        best_w, best_k = max_w, 10
+        best_form = dp[(n - 1) % 2][best_w][best_k]
+        if best_form == 0:
+            return None
+
+        selected_players = []
+        team_counts = {}
+        i = n - 1
+
+        while best_k > 0 and i >= 0:
+            prev_w = choices[i][best_w][best_k]
+            if prev_w != -1:
+                player = best_filter.iloc[i]
+                team = player["team"]
+
+                # Enforce max 2 per team
+                if team_counts.get(team, 0) >= 2:
+                    i -= 1
+                    continue
+
+                selected_players.append(player)
+                team_counts[team] = team_counts.get(team, 0) + 1
+
+                best_w = prev_w
+                best_k -= 1
+            i -= 1
+
+        return pd.DataFrame(selected_players)

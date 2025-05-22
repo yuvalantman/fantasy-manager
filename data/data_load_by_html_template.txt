@@ -1,0 +1,40 @@
+"""
+back_html1 = """
+
+"""
+back_html2 = """
+
+"""
+back_html3 = """
+
+"""
+front_html1 = """
+
+"""
+front_html2 = """
+
+"""
+front_html3 = """
+
+"""
+back_df1 = pd.read_html(StringIO(back_html1))[0]
+back_df2 = pd.read_html(StringIO(back_html2))[0]
+back_df3 = pd.read_html(StringIO(back_html3))[0]
+back_df4 = pd.read_html(StringIO(back_html4))[0]
+front_df1 = pd.read_html(StringIO(front_html1))[0]
+front_df2 = pd.read_html(StringIO(front_html2))[0]
+front_df3 = pd.read_html(StringIO(front_html3))[0]
+front_df4 = pd.read_html(StringIO(front_html4))[0]
+
+backcourt = pd.concat([back_df1,back_df2,back_df3,back_df4])
+frontcourt = pd.concat([front_df1,front_df2,front_df3,front_df4])
+frontcourt["Pos"] = "front"
+backcourt["Pos"] = "back"
+best = pd.concat([frontcourt,backcourt])
+best_filter = best[["Player","$","Form","TP.","Pos"]]
+best_filter["team"] = best_filter["Player"].str[-3:]
+best_filter["Player"] = best_filter["Player"].str[:-3]
+best_filter = best_filter[best_filter["Form"] >= 15]
+best_filter = best_filter.sort_values(by="Form", ascending=False).reset_index(drop=True)
+best_filter.to_csv(r'C:\Users\yuval\notebooks\fantasy_manager\data\top_update_players.csv')
+"""

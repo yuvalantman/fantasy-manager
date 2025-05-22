@@ -7,3 +7,5 @@ html5lib
 lxml
 waitress
 numba
+selenium
+beautifulsoup4

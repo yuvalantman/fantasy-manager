@@ -6,6 +6,8 @@ import json
 from optimizer import FantasyOptimizer
 from best_team_finder import BestTeamFinder
 from data_loader import data_loader
+import time
+import gc
 
 app = Flask(__name__, template_folder="templates", static_folder="templates/static")
 app.secret_key = "super_secret_key"
@@ -17,10 +19,13 @@ app.config["SESSION_FILE_DIR"] = "./.flask_session/"  # Store session files loca
 app.config["SECRET_KEY"] = "your_secret_key_here"  # Required for session security
 Session(app)  # Initialize server-side session
 data_load = data_loader()
-data_load.load_teams()
+#data_load.load_teams()
+#data_load.load_schedule()
 
-FULL_PLAYERS_CSV = "data/top_update_players.csv"
-SCHEDULE_CSV = "data/GW19Schedule.csv"
+## changing temporarily for showing my code
+## FULL_PLAYERS_CSV = "data/top_update_players.csv"
+FULL_PLAYERS_CSV = "data/top_update_players(1).csv"
+SCHEDULE_CSV = "data/GWSchedule.csv"
 
 full_players_df = pd.read_csv(FULL_PLAYERS_CSV)
 
@@ -94,8 +99,27 @@ def set_user_team():
 
     return jsonify({"message": "✅ User team saved successfully!"})
 
+def clean_dict_keys(data):
+    """Remove tuple keys from a dictionary."""
+    if isinstance(data, list):
+        return [clean_dict_keys(item) for item in data]
+    elif isinstance(data, dict):
+        return {str(key) if isinstance(key, tuple) else key: clean_dict_keys(value) for key, value in data.items()}
+    return data
+
+def convert_floats(obj):
+    """Recursively convert numpy float types to regular floats."""
+    if isinstance(obj, dict):
+        return {key: convert_floats(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_floats(value) for value in obj]
+    elif isinstance(obj, np.float64) or isinstance(obj, np.float32):
+        return float(obj)  # ✅ Convert NumPy float to Python float
+    return obj
+
 @app.route("/compute_result", methods=["POST"])
 def compute_result():
+    gc.collect()
     data = request.json
     option = data.get("option")
     sub_type = data.get("sub_type", "weekly")
@@ -109,7 +133,8 @@ def compute_result():
         updated_players_data = pd.DataFrame(session["updated_players_df"])
     else:
         updated_players_data = full_players_df.copy()  # Use fresh dataset if no user team exists
-
+    if not "user_team" in session:
+        print("user team not in session")
     # **Fix missing/empty DataFrame cases**
     if updated_players_data.empty:
         print("❌ ERROR: No valid dataset found. Using original dataset.")
@@ -140,14 +165,43 @@ def compute_result():
     elif option == "best_substitutions":
         if not user_team_data:
             return jsonify({"error": "⚠️ Please enter your team first!"})
-
+        start_time = time.time()
         optimizer = FantasyOptimizer(pd.DataFrame(user_team_data), pd.DataFrame(updated_players_data), SCHEDULE_CSV)
         best_swaps = optimizer.find_best_weekly_substitutions(extra_salary, top_n) if sub_type == "weekly" else optimizer.find_best_total_substitutions(extra_salary, top_n)
 
+        end_time = time.time()
+        print(f"optimizer runtime: {end_time - start_time:.2f} seconds")
+        gc.collect()
+
         if not best_swaps:
             return jsonify({"error": "⚠️ No valid substitutions found."})
+        if sub_type == "weekly":
 
-        response_data["top_substitutions"] = [swap._asdict() for swap in best_swaps]
+            response_data["top_substitutions"] = [
+                {
+                    "new_form" : swap[0],
+                    "current_form": swap[1],
+                    "new_salary": swap[2],
+                    "substitutions_out": list(swap[3]),
+                    "substitutions_in": list(swap[4]),
+                    "new_team": clean_dict_keys(swap[5]),
+                    "weekly_sched": json.dumps(convert_floats(swap[6]))
+                }
+                for swap in best_swaps
+            ]
+        else:
+            response_data["top_substitutions"] = [
+                {
+                    "form_gain" : swap[0],
+                    "new_form" : swap[1],
+                    "current_form": swap[2],
+                    "new_salary": swap[3],
+                    "substitutions_out": swap[4],
+                    "substitutions_in": swap[5],
+                    "new_team": clean_dict_keys(swap[6]),
+                }
+                for swap in best_swaps
+            ]
         return jsonify(response_data)
 
     return jsonify({"error": "⚠️ Invalid option selected."})

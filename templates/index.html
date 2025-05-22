@@ -21,14 +21,15 @@
                 div.innerHTML = `
                     <input type="text" class="player-input" onkeyup="autocompletePlayer(this)" placeholder="Player Name">
                     <div class="autocomplete-dropdown"></div>
-                    <input type="number" class="salary-input" placeholder="Salary">
+                    <input type="number" class="salary-input" placeholder="Salary" step="0.1">
                 `;
                 container.appendChild(div);
             }
         }
         function setupMenuNavigation() {
             document.querySelectorAll(".menu-item").forEach(item => {
-                item.addEventListener("click", function () {
+                item.addEventListener("click", function (e) {
+                    e.preventDefault();
                     let sectionToShow = this.dataset.section;
                     document.querySelectorAll(".section").forEach(sec => {
                         sec.style.display = "none";
@@ -117,6 +118,11 @@
                 });
             });
         }
+        function toggleTopNVisibility() {
+            const subType = document.getElementById("sub_type").value;
+            document.getElementById("top_n_input").style.display = (subType === "total") ? "block" : "block";
+        }
+
         async function fetchBestTeam() {
             let salaryCap = parseFloat(document.getElementById("salary_cap").value) || 100;
 
@@ -144,17 +150,21 @@
         }
 
         async function fetchBestSubstitutions() {
-            let subType = document.getElementById("sub_type").value;
-            let topN = parseInt(document.getElementById("top_n").value) || 5;
+            const spinner = document.getElementById("loading_spinner");
+            spinner.style.display = "block";
+            document.getElementById("weekly_subs_result").innerHTML = "";
 
-            let response = await fetch("/compute_result", {
+            const subType = document.getElementById("sub_type").value;
+            const topN = parseInt(document.getElementById("top_n").value) || 5;
+
+            const response = await fetch("/compute_result", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ option: "best_substitutions", sub_type: subType, top_n: topN })
             });
 
-            let data = await response.json();
-            console.log("✅ Best Substitutions Response:", data);
+            const data = await response.json();
+            spinner.style.display = "none";
 
             if (data.error) {
                 alert(data.error);
@@ -163,12 +173,13 @@
 
             totalSubstitutions = data.top_substitutions;
             currentSubIndex = 0;
-
-            if (subType === "weekly") {
-                displayWeeklySubstitutions(totalSubstitutions);
-            } else {
-                displayTotalSubstitutions(totalSubstitutions);
+            if (subType == 'weekly'){
+                displayWeeklySubstitutions(currentSubIndex, totalSubstitutions);
             }
+            else{
+                displayTotalSubstitutions(currentSubIndex, totalSubstitutions)
+            }
+            
         }
 
 
@@ -259,14 +270,47 @@
 
         function changeSubstitution(direction, substitutions, contentDivId) {
             currentSubIndex += direction;
-            displaySubstitution(currentSubIndex, substitutions, contentDivId);
+            if(contentDivId === "weekly_subs_result"){
+                displayWeeklySubstitutions(currentSubIndex, substitutions);
+            }
+            else{
+                displayTotalSubstitutions(currentSubIndex,substitutions)
+            }
+            
+        }
+        function updateNavButtons() {
+            document.getElementById("prev_substitution").style.display = currentSubIndex > 0 ? "inline-block" : "none";
+            document.getElementById("next_substitution").style.display = currentSubIndex < totalSubstitutions.length - 1 ? "inline-block" : "none";
         }
 
-        function displayWeeklySubstitutions(substitutions) {
-            totalSubstitutions = substitutions;
-            currentSubIndex = 0;
-            displaySubstitution(currentSubIndex, totalSubstitutions, "weekly_subs_result");
+        function displayWeeklySubstitutions(index=0, substitutions) {
+            console.log("DEBUG: Substitutions Received", substitutions);  // Check if data is received
+        
+            const container = document.getElementById("weekly_subs_result");
+
+            if (!substitutions || substitutions.length === 0) {
+                contentDiv.innerHTML = "<p>⚠️ No valid substitutions found.</p>";
+                return;
+            }
+
+            const swap = substitutions[index];
+
+            container.innerHTML = `
+                <h5>💡 Substitution Plan ${index + 1} of ${substitutions.length}</h5>
+                <p><strong>Current Form:</strong> ${swap.current_form}</p>
+                <p><strong>New Weekly Form:</strong> ${swap.new_form}</p>
+                <p><strong>New Salary:</strong> $${swap.new_salary}</p>
+                <p><strong>Players Out:</strong> ${swap.substitutions_out.join(", ")}</p>
+                <p><strong>Players In:</strong> ${swap.substitutions_in.join(", ")}</p>
+                <h4>✅ New Team</h4>
+                ${swap.new_team.map(player => `<p>${player.Player} - ${player.team} ($${player.Salary}) (Form - ${player.Form})</p>`).join("")}
+                <button onclick='showWeeklySubstitutions(${index}, ${JSON.stringify(swap.weekly_sched)})'>View Weekly Schedule</button>
+                <div id="weekly_schedule_${index}" class="weekly-schedule" style="display: none;"></div>
+            `;
+            updateNavButtons();
+
         }
+
 
         function displayTotalSubstitutions(substitutions) {
             totalSubstitutions = substitutions;
@@ -276,6 +320,20 @@
 
         function showWeeklySubstitutions(index, scheduleData) {
             let scheduleDiv = document.getElementById(`weekly_schedule_${index}`);
+            if (!scheduleDiv) {
+                console.error(`⚠️ ERROR: 'weekly_schedule_${index}' div not found.`);
+                return;
+            }
+
+            if (typeof scheduleData === "string") {
+                scheduleData = JSON.parse(scheduleData);
+            }
+
+            if (!scheduleData || Object.keys(scheduleData).length === 0) {
+                scheduleDiv.innerHTML = "<p>⚠️ No schedule data available.</p>";
+                return;
+            }
+
             if (scheduleDiv.innerHTML === "") {
                 let tableHTML = `<table border="1" style="border-collapse: collapse; width: 100%; text-align: center;">
                                     <thead>
@@ -291,24 +349,53 @@
                                     </thead>
                                     <tbody>`;
 
-                let maxRows = Math.max(...Object.values(scheduleData).map(day => day.length));
+                // Find the max number of players (excluding last element which is the total)
+                let maxRows = Math.max(...Object.values(scheduleData).map(dayList => dayList.length - 1));
+
+                // Loop through players
                 for (let row = 0; row < maxRows; row++) {
                     tableHTML += "<tr>";
                     for (let day = 1; day <= 7; day++) {
                         let dayData = scheduleData[day] || [];
-                        if (row < dayData.length) {
-                            tableHTML += `<td>${dayData[row].Player} (${dayData[row].Form})</td>`;
-                        } else {
-                            tableHTML += "<td></td>";
+                        let playersOnly = dayData.slice(0, -1); // Remove last item (daily total)
+                        let cell = "";
+
+                        if (row < playersOnly.length) {
+                            let entry = playersOnly[row];
+                            if (entry && entry.Player !== undefined && entry.Form !== undefined) {
+                                cell = `${entry.Player} (${entry.Form})`;
+                            }
                         }
+
+                        tableHTML += `<td>${cell}</td>`;
                     }
                     tableHTML += "</tr>";
                 }
+
+                // Total Form Row
+                tableHTML += "<tr>";
+                for (let day = 1; day <= 7; day++) {
+                    let dayData = scheduleData[day];
+                    let totalCell = "";
+
+                    if (dayData && dayData.length > 0) {
+                        let lastEntry = dayData[dayData.length - 1];
+                        if (lastEntry["Daily Total"] !== undefined) {
+                            totalCell = `<strong>Total: ${lastEntry["Daily Total"]}</strong>`;
+                        }
+                    }
+
+                    tableHTML += `<td>${totalCell}</td>`;
+                }
+                tableHTML += "</tr>";
+
                 tableHTML += "</tbody></table>";
                 scheduleDiv.innerHTML = tableHTML;
             }
+
             scheduleDiv.style.display = scheduleDiv.style.display === "none" ? "block" : "none";
         }
+
 
 
         async function computeResult(option, top_n = 5) {
@@ -338,12 +425,23 @@
                 resultDiv.innerHTML += `<p><strong>Total Form:</strong> ${data.total_form}</p>`;
                 resultDiv.innerHTML += `<p><strong>Total Price:</strong> $${data.total_price}</p>`;
             }
-
+            
             else if (option === "best_weekly_subs") {
-                displayWeeklySubstitutions(data.top_substitutions);
+                let substitutions = data.top_substitutions;
+
+                // ✅ Ensure substitutions exist
+                if (!substitutions || substitutions.length === 0) {
+                    console.warn("⚠️ No substitutions received from backend.");
+                    document.getElementById("weekly_subs_result").innerHTML = "<p>⚠️ No valid substitutions found.</p>";
+                    return;
+                }
+
+                let currentSubIndex = 0;
+                console.log("✅ Displaying Weekly Substitutions", substitutions);
+                displayWeeklySubstitutions(currentSubIndex, data.top_substitutions);
             }
             else if (option === "best_total_subs") {
-                displayTotalSubstitutions(data.top_substitutions);
+                displayTotalSubstitutions(currentSubIndex, data.top_substitutions);
             }
         }
 
@@ -351,8 +449,11 @@
 </head>
 <body>
     <div class="container">
+        <header>
+        <img src="/static/logo.png" alt="Fantasy Logo" class="logo-img left-logo">
         <h1>Fantasy Manager</h1>
-
+        <img src="/static/logo.png" alt="Fantasy Logo" class="logo-img right-logo">
+    </header>
         <div id="team_inputs"></div>
         <input type="number" id="extra_salary" placeholder="Extra Salary">
         <button onclick="setUserTeam()">Save Team</button>
@@ -376,20 +477,24 @@
         <!-- Best Substitutions Section -->
         <div id="substitutions_section" class="section" style="display: none;">
             <h2>Find Best Substitutions</h2>
+            <h3> might take up to 30 seconds</h3>
             <label for="sub_type">Select Type:</label>
-            <select id="sub_type">
+            <select id="sub_type" onchange="toggleTopNVisibility()">
                 <option value="weekly">Weekly</option>
                 <option value="total">Total</option>
             </select>
-            <div id="top_n_input" style="display: none;">
+            <div id="top_n_input">
                 <label for="top_n">Number of Substitutions:</label>
                 <input type="number" id="top_n" name="top_n" min="1" max="10" value="5">
             </div>
             <button onclick="fetchBestSubstitutions()">Get Best Substitutions</button>
+            <div id="loading_spinner"></div>
             <div id="best_subs_results">
                 <div id="substitution_display"></div>
-                <button id="prev_substitution" onclick="changeSubstitution(-1, totalSubstitutions, 'substitution_display')" style="display:none;">⬅ Previous</button>
-                <button id="next_substitution" onclick="changeSubstitution(1, totalSubstitutions, 'substitution_display')" style="display:none;">Next ➡</button>
+                <div id="weekly_subs_result"></div>
+                <div id="total_subs_result"></div>
+                <button id="prev_substitution" onclick="changeSubstitution(-1, totalSubstitutions, 'weekly_subs_result')" style="display:none;">⬅ Previous</button>
+                <button id="next_substitution" onclick="changeSubstitution(1, totalSubstitutions, 'weekly_subs_result')" style="display:none;">Next ➡</button>
             </div>
         </div>
         

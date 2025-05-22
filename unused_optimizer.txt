@@ -1,0 +1,306 @@
+@lru_cache(maxsize=None)
+    def get_player_day_form(self, player_name, player_team, player_pos, day):
+        if (player_name, day) in self.playing_players_lookup:
+            return player_pos, self.form_lookup.get((player_name, player_team), 0.0)
+        return None
+    
+    def get_playing_players(self, team_df, day):
+        """Returns players from a given team who have a game on the given day."""
+        if day not in self.playing_teams_dict.keys():
+            return team_df.iloc[0:0]  # Return empty DataFrame
+        return team_df[team_df["Player"].isin(self.playing_players_dict[day])]
+
+
+    def get_weekly_form(self, team_df=None):
+        """Computes total weekly form by summing the best possible daily lineups."""
+        if team_df is None:
+            team_df = self.my_team  # Default to current team if no argument is given
+
+        total_form = 0
+        for day in range(1, 8):
+            forms_today = []
+            for _, row in team_df.iterrows():
+                val = self.get_player_day_form(row["Player"], row["team"], row["Pos"], day)
+                if val:
+                    forms_today.append(val)
+
+            back = sorted([f for pos, f in forms_today if pos == "back"], reverse=True)[:3]
+            front = sorted([f for pos, f in forms_today if pos == "front"], reverse=True)[:3]
+            top = sorted(back + front, reverse=True)[:5]
+            total_form += sum(top)
+
+        return total_form
+    
+    def evaluate_swap(self, out_dicts, in_dicts, current_form):
+        out_players = [p["Player"] for p in out_dicts]
+        new_team = self.my_team[~self.my_team["Player"].isin(out_players)].copy()
+        new_team = pd.concat([new_team, in_dicts], ignore_index=True)
+        new_form = self.get_weekly_form(team_df=new_team)
+        weekly_sched = self.print_weekly_form(new_team)
+        return new_form, out_players, in_dicts["Player"].tolist(), new_team, weekly_sched
+    
+    def print_weekly_form(self,team_df = None):
+        if team_df is None:
+            team_df = self.my_team  # Default to current team if no argument is given
+
+        weekly_sched = {}
+        for day in range(1, 8):  # Days 1-7
+            playing_players = self.get_playing_players(team_df, day)
+
+            if len(playing_players) > 0:
+                back_players = playing_players[playing_players["Pos"] == "back"]
+                front_players = playing_players[playing_players["Pos"] == "front"]
+
+                # Select at most 3 from each position
+                top_back = back_players.nlargest(3, "Form") if len(back_players) > 0 else pd.DataFrame()
+                top_front = front_players.nlargest(3, "Form") if len(front_players) > 0 else pd.DataFrame()
+
+                # Combine the players and select up to 5 total
+                top_players = pd.concat([top_back, top_front]).nlargest(5, "Form")
+                daily_form = top_players["Form"].sum()
+                weekly_sched[day] = top_players[["Player", "Form"]].to_dict(orient="records")  # Convert DataFrame to list of dicts
+                weekly_sched[day].append({"Daily Total": daily_form.round(1)})
+            else:
+                weekly_sched[day] = []
+        return weekly_sched
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    @jit(nopython=True)  # 🔹 This will make it much faster!
+    def compute_form_gain(out_form, in_form):
+        return in_form - out_form
+    
+    def generate_valid_combos(self, available_players, num_swaps, required_key, available_salary):
+        for in_players in itertools.combinations(available_players.itertuples(index=False, name="PlayerTuple"), num_swaps):
+            pos_tuple = tuple(sorted(p.Pos for p in in_players))
+            key = "1" if num_swaps == 1 else (
+                "FF" if pos_tuple == ("front", "front") else
+                "BB" if pos_tuple == ("back", "back") else "FB"
+            )
+            if key != required_key:
+                continue
+
+            df = pd.DataFrame([p._asdict() for p in in_players])
+            salary = df["Salary"].sum()
+            if salary <= available_salary:
+                yield salary, df
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    def find_best_weekly_substitutions1(self, extra_salary=0, top_n=5):
+        print("🔍 Starting best weekly substitution search...")
+        extra_salary = float(extra_salary)
+        self.my_team = self.my_team.rename(columns={"$": "Salary"})
+        self.best_filter = self.best_filter.rename(columns={"$": "Salary"})
+        current_weekly_form = self.get_weekly_form()
+        current_salary = self.my_team["Salary"].sum()
+
+        available_players = self.best_filter[~self.best_filter["Player"].isin(self.my_team["Player"])]
+        available_players = available_players.sort_values(by="Form", ascending=False)
+
+        top_swaps = []
+        min_top_form = float("-inf")
+
+        futures = []
+        with ThreadPoolExecutor(max_workers=6) as executor:
+            total_combos = 0
+            evaluated_combos = 0
+            for num_swaps in [1, 2]:
+                print(f"➡️  Evaluating {num_swaps}-player swaps...")
+                for out_players in itertools.combinations(self.my_team.itertuples(index=False, name="PlayerTuple"), num_swaps):
+                    out_list = list(out_players)
+                    out_dicts = [p._asdict() for p in out_list]
+                    available_salary = sum(float(p["Salary"]) for p in out_dicts) + extra_salary
+                    pos_tuple = tuple(sorted(p["Pos"] for p in out_dicts))
+                    key = "1" if num_swaps == 1 else (
+                        "FF" if pos_tuple == ("front", "front") else
+                        "BB" if pos_tuple == ("back", "back") else "FB"
+                    )
+
+                    combo_count = 0
+                    for salary, in_df in self.generate_valid_combos(available_players, num_swaps, key, available_salary):
+                        combo_count += 1
+                        total_combos += 1
+                        in_dicts = in_df.copy()
+                        futures.append(executor.submit(self.evaluate_swap, out_dicts, in_dicts, current_weekly_form))
+                    print(f"    🔸 {combo_count} valid combos found for swap-out: {[p['Player'] for p in out_dicts]}")
+
+            print(f"🔢 Total swap combinations scheduled: {total_combos}")
+
+            for f in futures:
+                evaluated_combos += 1
+                if evaluated_combos % 100 == 0:
+                    print(f"⏳ Evaluated {evaluated_combos}/{total_combos} swaps...")
+
+                new_form, out_players, in_players, new_team, weekly_sched = f.result()
+                if new_form >= min_top_form:
+                    if len(top_swaps) < top_n:
+                        heapq.heappush(top_swaps, (round(float(new_form), 1), round(float(current_weekly_form), 1), out_players, in_players, new_team, weekly_sched))
+                    else:
+                        heapq.heappushpop(top_swaps, (round(float(new_form), 1), round(float(current_weekly_form), 1), out_players, in_players, new_team, weekly_sched))
+                    min_top_form = top_swaps[0][0]
+
+        print(f"✅ Total evaluated: {evaluated_combos}, Top swaps found: {len(top_swaps)}")
+        top_swaps.sort(reverse=True, key=lambda x: x[0])
+        print("subs")
+        for swap in top_swaps:
+            print("DEBUG: Swap Structure")
+            for i, item in enumerate(swap):
+                print(f" - swap[{i}] ({type(item)}): {item}")
+        return top_swaps  # Returns a list of top swaps instead of just the best on
+    
+
+
+
+
+
+
+
+
+def find_best_weekly_amen(self,extra_salary=0,top_n =5):
+        """Finds the best 1-2 substitutions to improve weekly form, considering extra salary."""
+        # Ensure salary is handled correctly
+        extra_salary = float(extra_salary)
+
+        # Rename salary column to avoid KeyErrors
+        self.my_team = self.my_team.rename(columns={"$": "Salary"})
+        self.best_filter = self.best_filter.rename(columns={"$": "Salary"})
+
+        current_weekly_form = self.get_weekly_form()
+        current_salary = self.my_team["Salary"].sum()
+
+        available_players = self.best_filter[~self.best_filter["Player"].isin(self.my_team["Player"])]
+        available_players = available_players.sort_values(by="Form", ascending=False)
+
+        best_team = self.my_team.copy()
+        available_combos = {
+            "1": [],  # 1-player swaps
+            "FF": [], # 2-player front swaps
+            "BB": [], # 2-player back swaps
+            "FB": []  # 2-player mixed swaps
+        }
+        batch_size = 10
+
+        for num_swaps in [1, 2]:
+            for i in range(0, len(available_players), batch_size):
+                batch = available_players.iloc[i:i + batch_size]
+                for in_players in itertools.combinations(batch.itertuples(index=False, name="PlayerTuple"), num_swaps):
+                    in_df = pd.DataFrame(in_players, columns=[["Unnamed: 0", "Player", "Salary", "Form", "TP.", "Pos", "team"]])
+                    #print(in_df)
+                    salary_sum = in_df["Salary"].sum()
+
+                    # Categorize by position
+                    if num_swaps == 1:
+                        key = "1"
+                    else:
+                        pos_tuple = tuple(sorted(p.Pos for p in in_players))
+                        if pos_tuple == ("front", "front"):
+                            key = "FF"
+                        elif pos_tuple == ("back", "back"):
+                            key = "BB"
+                        else:
+                            key = "FB"
+
+                    available_combos[key].append((float(salary_sum.iloc[0]), in_df))
+
+        # **Step 2: Sort each category by salary (ascending)**
+        for key in available_combos:
+            available_combos[key].sort(key=lambda x: x[0])
+        top_swaps= []
+        min_top_form = float('-inf')
+        amen = self.my_team.loc[self.my_team["Player"] == "Trey Murphy III"].itertuples(index=False, name="PlayerTuple")
+        amen = list(amen)  # Convert to list of named tuples
+        if not amen:
+            return []  # If Amen Thompson is not found, return an empty list
+        amen = amen[0]  # Extract the first (and only) matching player as a named tuple
+
+        num_swaps = 2
+        team_no_amen = self.my_team[~self.my_team["Player"].isin([amen.Player])].copy()
+        for player in team_no_amen.itertuples(index=False, name="PlayerTuple"):  # Iterate over actual players
+            out_list = [amen, player]
+            out_dicts = [p._asdict() for p in out_list]  # ✅ Now both are named tuples, so _asdict() works
+
+
+            available_salary = sum(float(p["Salary"]) for p in out_dicts) + extra_salary
+            if num_swaps == 1:
+                swap_list = available_combos["1"]
+            else:
+                pos_tuple = tuple(sorted(p.Pos for p in out_list))
+                if pos_tuple == ("front", "front"):
+                    swap_list = available_combos["FF"]
+                elif pos_tuple == ("back", "back"):
+                    swap_list = available_combos["BB"]
+                else:
+                    swap_list = available_combos["FB"]
+
+            # **Step 5: Filter valid swaps by salary**
+            valid_replacements = [(salary, df) for (salary, df) in swap_list if float(salary) <= available_salary]
+            if not valid_replacements:
+                continue
+
+            for i in range(0, len(valid_replacements)):
+                if isinstance(valid_replacements[i][1], pd.DataFrame):
+                    in_dicts = valid_replacements[i][1].copy()
+                else:
+                    in_dicts = pd.DataFrame([p._asdict() for p in valid_replacements[i][1]])
+                in_dicts.columns = in_dicts.columns.map(lambda x: x[0] if isinstance(x, tuple) else x.strip())  # ✅ Fix tuple issue
+                expected_columns = ["Unnamed: 0", "Player", "Salary", "Form", "TP.", "Pos", "team"]
+                in_dicts = in_dicts[expected_columns]
+                in_dicts = in_dicts[self.my_team.columns.intersection(in_dicts.columns)]
+                new_team = self.my_team[~self.my_team["Player"].isin([p["Player"] for p in out_dicts])].copy()
+                new_team = pd.concat([new_team, in_dicts], ignore_index=True, sort=False)
+                
+
+                new_salary = new_team["Salary"].sum()
+
+                new_form = self.get_weekly_form(team_df=new_team)
+                if new_form >= min_top_form :
+                    weekly_sched = self.print_weekly_form(new_team)
+                    if len(top_swaps) < top_n:
+                        heapq.heappush(top_swaps, (
+                            round(float(new_form), 1),
+                            round(float(current_weekly_form),1),  
+                            round(float(new_salary), 1),  
+                            [p["Player"] for p in out_dicts], 
+                            in_dicts["Player"].tolist(),
+                            new_team.to_dict(orient="records"),  # ✅ Move to the end
+                            weekly_sched
+                        ))
+                    else:
+                        heapq.heappushpop(top_swaps, (
+                            round(float(new_form), 1), 
+                            round(float(current_weekly_form),1), 
+                            round(float(new_salary), 1),  
+                            [p["Player"] for p in out_dicts], 
+                            in_dicts["Player"].tolist(),
+                            new_team.to_dict(orient="records"),  # ✅ Move to the end
+                            weekly_sched
+                        ))
+                    # **Update min_top_form**
+                    min_top_form = top_swaps[0][0]  # The smallest form gain in the heap
+
+
+                    # **Step 10: Get the top N best swaps (sorted by highest form gain)**
+        top_swaps.sort(reverse=True, key=lambda x: x[0])  # Sort by highest form gain
+        print("subs")
+        for swap in top_swaps:
+            print("DEBUG: Swap Structure")
+            for i, item in enumerate(swap):
+                print(f" - swap[{i}] ({type(item)}): {item}")
+        return top_swaps  # Returns a list of top swaps instead of just the best on
+    
