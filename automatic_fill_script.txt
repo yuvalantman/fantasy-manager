@@ -1,0 +1,26 @@
+// Replace this with your chosen debug team (must be 10 players!)
+const debugTeam = [
+    { name: "Giannis Antetokounmpo", salary: 17.9 },
+    { name: "Shai Gilgeous-Alexander ", salary: 17.5 },
+    { name: "Jalen Duren", salary: 12.3 },
+    { name: "Ivica Zubac", salary: 11.8 },
+    { name: "Jaden McDaniels", salary: 8.2 },
+    { name: "Naji Marshall", salary: 6.3 },
+    { name: "Dyson Daniels", salary: 8.5 },
+    { name: "Quentin Grimes", salary: 5.5 },
+    { name: "Isaiah Collier", salary: 5.2 },
+    { name: "Keon Johnson", salary: 5 },
+];
+
+const playerInputs = document.querySelectorAll(".player-input");
+const salaryInputs = document.querySelectorAll(".salary-input");
+
+debugTeam.forEach((player, i) => {
+    if (playerInputs[i] && salaryInputs[i]) {
+        playerInputs[i].value = player.name;
+        salaryInputs[i].value = player.salary;
+    }
+});
+
+// Optional: auto-fill extra salary too
+document.getElementById("extra_salary").value = 2.3;

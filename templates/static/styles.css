@@ -1,6 +1,6 @@
 /* General Styles */
 body {
-    font-family: 'Segoe UI', sans-serif;
+    font-family: 'Inter', 'Segoe UI', Arial sans-serif;
     background: linear-gradient(to bottom, #e9edf5, #dbe1ec);
     margin: 0;
     padding: 0;
@@ -23,6 +23,10 @@ body {
     justify-content: center;
     gap: 20px;
     margin-top: 10px;
+}
+
+.container, .section, #result, #total_substitutions_section {
+    transition: box-shadow 0.3s, transform 0.3s;
 }
 
 /* Header Styling */
@@ -124,7 +128,11 @@ nav a.active {
 }
 
 .player-entry:focus-within {
-    z-index: 10;
+    z-index: 10000;
+}
+
+.player-entry.dropdown-open {
+    z-index: 10000;
 }
 
 .player-input,
@@ -162,36 +170,47 @@ input:-webkit-autofill {
 /* Button Styling */
 /* Button Styling - More Compact */
 button {
-    background: linear-gradient(to right, #0033a0, #0056b3);
-    color: white;
+    background: linear-gradient(to right, #ffd700, #ffb300);
+    color: #002855;
+    font-weight: bold;
+    box-shadow: 0 2px 8px rgba(255, 215, 0, 0.15);
     border: none;
-    padding: 12px 20px;
-    font-size: 16px;
-    border-radius: 6px;
+    padding: 14px 24px;
+    font-size: 18px;
+    border-radius: 8px;
     cursor: pointer;
     margin-top: 10px;
-    transition: all 0.3s ease;
+    transition: all 0.3s, box-shadow 0.3s;
 }
 
 button:hover {
-    background: linear-gradient(to right, #0056b3, #0033a0);
-    transform: scale(1.05);
+    background: linear-gradient(to right, #ffb300, #ffd700);
+    box-shadow: 0 4px 16px rgba(255, 215, 0, 0.25);
+    transform: scale(1.07);
 }
 
-
 /* Autocomplete Dropdown */
+.input-autocomplete-wrapper {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 180px;
+    min-width: 0;
+}
+
 .autocomplete-dropdown {
     position: absolute;
     top: 100%;
     left: 0;
-    right: 0;
+    right: auto;
+    width: 50%;
     margin-top: -2px;
     background: white;
     max-height: 200px;
     overflow-y: auto;
     border-radius: 0 0 6px 6px;
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-    z-index: 9999;  /* ✅ stays above everything */
+    z-index: 10001;  /* ✅ stays above everything */
 }
 
 .autocomplete-item {
@@ -224,7 +243,8 @@ button:hover {
 
 /* Spinner for loading */
 
-#loading_spinner {
+#loading_spinner_best_team,
+#loading_spinner_subs {
     display: none;
     width: 50px;
     height: 50px;
@@ -306,6 +326,20 @@ tr:last-child {
     font-weight: bold;
 }
 
+/* Best Team Section */
+#best_team_results {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: left;
+}
+#best_team_results p {
+    text-align: left;
+    width: 100%;
+    max-width: 400px;
+    margin: 4px 0; /* Optional: reduce vertical gap */
+}
+
 /* Substitutions Section */
 #total_substitutions_section {
     background-color: white;
@@ -317,16 +351,50 @@ tr:last-child {
     max-width: 600px;
     margin-left: auto;
     margin-right: auto;
-    text-align: center;
+    text-align: left;
+}
+
+#total_substitutions_content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;      /* Center the list as a block */
+    text-align: left !important; /* Ensure text inside is left-aligned */
 }
 
 /* Substitutions Content */
+#total_substitutions_content li,
 #total_substitutions_content p {
     margin: 5px 0;
     padding: 5px 8px;
     background: #f5f5f5;
     border-radius: 5px;
     box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+    text-align: left !important;
+    width: 100%; /* Ensures the list items take full width */
+    max-width: 400px; /* Optional: limits the width of each item */
+}
+
+#weekly_subs_result,
+#total_subs_result {
+    display: flex;
+    flex-direction: column;
+    align-items: center;      /* Center the list as a block */
+    text-align: left;         /* Left-align the text inside */
+    gap: 4px;
+    padding: 0;
+}
+
+#weekly_subs_result p,
+#total_subs_result p {
+    text-align: left;         /* Ensure each item is left-aligned */
+    width: 100%;              /* Make each item fill the container width */
+    max-width: 400px;         /* Optional: limit width for better appearance */
+    margin: 2px 0;            /* Reduce vertical gap */
+    padding: 6px 10px;        /* Subtle padding for readability */
+    background: #f5f5f5;
+    border-radius: 5px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    font-size: 15px;
 }
 
 /* Navigation Buttons */
@@ -346,6 +414,10 @@ tr:last-child {
 #next_substitution:hover {
     background-color: #e50914;
     transform: scale(1.05);
+}
+
+.weekly-schedule table {
+    margin: auto;
 }
 
 .error-message {

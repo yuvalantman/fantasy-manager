@@ -4,11 +4,41 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fantasy Manager</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <script>
         document.addEventListener("DOMContentLoaded", function() { 
             generatePlayerInputs();
             setupMenuNavigation();
+            // auto-fill player inputs for debugging
+            if(location.hostname === "localhost" || location.hostname === "127.0.0.1"){
+                const debugTeam = [
+                    { name: "Giannis Antetokounmpo", salary: 17.9 },
+                    { name: "Shai Gilgeous-Alexander ", salary: 17.5 },
+                    { name: "Jalen Duren", salary: 12.3 },
+                    { name: "Ivica Zubac", salary: 11.8 },
+                    { name: "Jaden McDaniels", salary: 8.2 },
+                    { name: "Naji Marshall", salary: 6.3 },
+                    { name: "Dyson Daniels", salary: 8.5 },
+                    { name: "Quentin Grimes", salary: 5.5 },
+                    { name: "Isaiah Collier", salary: 5.2 },
+                    { name: "Keon Johnson", salary: 5 },
+                ];
+
+                const playerInputs = document.querySelectorAll(".player-input");
+                const salaryInputs = document.querySelectorAll(".salary-input");
+
+                debugTeam.forEach((player, i) => {
+                    if (playerInputs[i] && salaryInputs[i]) {
+                        playerInputs[i].value = player.name;
+                        salaryInputs[i].value = player.salary;
+                    }
+                });
+
+                // Optional: auto-fill extra salary too
+                document.getElementById("extra_salary").value = 2.3;
+            }
         });
         
 
@@ -55,6 +85,7 @@
             let dropdown = input.nextElementSibling;
             dropdown.innerHTML = "";
             dropdown.style.display = "block"; // Show dropdown
+            input.parentElement.classList.add("dropdown-open"); // Add class for z-index
 
             players.forEach(player => {
                 let option = document.createElement("div");
@@ -64,8 +95,16 @@
                     input.value = player;
                     dropdown.innerHTML = "";
                     dropdown.style.display = "none"; // Hide dropdown after selection
+                    input.parentElement.classList.add("dropdown-open"); // Add class for z-index
                 };
                 dropdown.appendChild(option);
+            });
+            // Hide dropdown if input loses focus (with slight delay for click)
+            input.addEventListener("blur", function() {
+                setTimeout(() => {
+                    dropdown.style.display = "none";
+                    input.parentElement.classList.remove("dropdown-open");
+                }, 200);
             });
         }
 
@@ -124,6 +163,8 @@
         }
 
         async function fetchBestTeam() {
+            const spinner = document.getElementById("loading_spinner_best_team");
+            spinner.style.display = "block"; // Show spinner
             let salaryCap = parseFloat(document.getElementById("salary_cap").value) || 100;
 
             let response = await fetch("/compute_result", {
@@ -133,6 +174,7 @@
             });
 
             let data = await response.json();
+            spinner.style.display = "none"; // Hide spinner
             console.log("✅ Best Team Response:", data);
 
             if (data.error) {
@@ -150,7 +192,9 @@
         }
 
         async function fetchBestSubstitutions() {
-            const spinner = document.getElementById("loading_spinner");
+            document.getElementById("prev_substitution").style.display = "none";
+            document.getElementById("next_substitution").style.display = "none";
+            const spinner = document.getElementById("loading_spinner_subs");
             spinner.style.display = "block";
             document.getElementById("weekly_subs_result").innerHTML = "";
 
@@ -196,7 +240,7 @@
                 return;
             }
 
-            let tableHTML = `<table border="1" style="border-collapse: collapse; width: 100%; text-align: center;">
+            let tableHTML = `<table class="weekly-schedule">
                                 <thead>
                                     <tr>
                                         <th>Monday</th>
@@ -209,21 +253,44 @@
                                     </tr>
                                 </thead>
                                 <tbody>`;
-            
-            let maxRows = Math.max(...Object.values(data.weekly_schedule).map(day => day.length));
+
+            let maxRows = Math.max(...Object.values(data.weekly_schedule).map(day => day.length - 1));
             for (let row = 0; row < maxRows; row++) {
                 tableHTML += "<tr>";
                 for (let day = 1; day <= 7; day++) {
                     let dayData = data.weekly_schedule[day] || [];
-                    if (row < dayData.length-1) {
-                            tableHTML += `<td>${dayData[row].Player} (${dayData[row].Form})</td>`;
-                        } else {
-                            tableHTML += `<td>${dayData[row]}</td>`;
-                            tableHTML += "<td></td>";
+                    let playersOnly = dayData.slice(0, -1); // Remove last item (daily total)
+                    let cell = "";
+
+                    if (row < playersOnly.length) {
+                        let entry = playersOnly[row];
+                        if (entry && entry.Player !== undefined && entry.Form !== undefined) {
+                            cell = `${entry.Player} (${entry.Form})`;
                         }
+                    }
+
+                    tableHTML += `<td>${cell}</td>`;
                 }
                 tableHTML += "</tr>";
             }
+
+            // Total Form Row
+            tableHTML += "<tr>";
+            for (let day = 1; day <= 7; day++) {
+                let dayData = data.weekly_schedule[day];
+                let totalCell = "";
+
+                if (dayData && dayData.length > 0) {
+                    let lastEntry = dayData[dayData.length - 1];
+                    if (lastEntry["Daily Total"] !== undefined) {
+                        totalCell = `<strong>Total: ${lastEntry["Daily Total"]}</strong>`;
+                    }
+                }
+
+                tableHTML += `<td>${totalCell}</td>`;
+            }
+            tableHTML += "</tr>";
+
             tableHTML += "</tbody></table>";
             scheduleDiv.innerHTML = tableHTML;
         }
@@ -450,11 +517,19 @@
 <body>
     <div class="container">
         <header>
-        <img src="/static/logo.png" alt="Fantasy Logo" class="logo-img left-logo">
-        <h1>Fantasy Manager</h1>
-        <img src="/static/logo.png" alt="Fantasy Logo" class="logo-img right-logo">
-    </header>
-        <div id="team_inputs"></div>
+            <img src="/static/logo.png" alt="Fantasy Logo" class="logo-img left-logo">
+            <h1>Fantasy Manager</h1>
+            <img src="/static/logo.png" alt="Fantasy Logo" class="logo-img right-logo">
+        </header>
+        <div id="team_inputs">
+            <div class="player-entry">
+                <div class="input-autocomplete-wrapper">
+                    <input type="text" class="player-input" ...>
+                    <div class="autocomplete-dropdown"></div>
+                </div>
+                <input type="number" class="salary-input" ...>
+            </div>
+        </div>
         <input type="number" id="extra_salary" placeholder="Extra Salary">
         <button onclick="setUserTeam()">Save Team</button>
 
@@ -464,13 +539,15 @@
             <a href="#" class="menu-item" data-section="substitutions_section">Best Substitutions</a>
             <a href="#" class="menu-item" data-section="weekly_schedule_section">Weekly Schedule</a>
         </nav>
-        
+        <div id="loading_spinner"></div>
+
         <!-- Best Team Section -->
         <div id="best_team_section" class="section">
             <h2>Find Best Team</h2>
             <label for="salary_cap">Enter Salary Cap:</label>
             <input type="number" id="salary_cap" name="salary_cap" min="50" max="150" value="100">
             <button onclick="fetchBestTeam()">Get Best Team</button>
+            <div id="loading_spinner_best_team" style="display:none"></div>
             <div id="best_team_results"></div>
         </div>
         
@@ -488,7 +565,7 @@
                 <input type="number" id="top_n" name="top_n" min="1" max="10" value="5">
             </div>
             <button onclick="fetchBestSubstitutions()">Get Best Substitutions</button>
-            <div id="loading_spinner"></div>
+            <div id="loading_spinner_subs" style="display:none"></div>
             <div id="best_subs_results">
                 <div id="substitution_display"></div>
                 <div id="weekly_subs_result"></div>
