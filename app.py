@@ -19,13 +19,17 @@ app.config["SESSION_FILE_DIR"] = "./.flask_session/"  # Store session files loca
 app.config["SECRET_KEY"] = "your_secret_key_here"  # Required for session security
 Session(app)  # Initialize server-side session
 data_load = data_loader()
-#data_load.load_teams()
+data_load.load_teams()
+schedule_payload = data_load.get_or_update_schedule(num_weeks=3)
+app.config["SCHEDULE_DATA"] = schedule_payload["weeks"]
 #data_load.load_schedule()
 
 ## changing temporarily for showing my code
-## FULL_PLAYERS_CSV = "data/top_update_players.csv"
-FULL_PLAYERS_CSV = "data/top_update_players(1).csv"
-SCHEDULE_CSV = "data/GWSchedule.csv"
+FULL_PLAYERS_CSV = "data/top_update_players_2026.csv"
+## FULL_PLAYERS_CSV = "data/top_update_players(1).csv"
+#SCHEDULE_CSV = "data/GWSchedule26_11.csv"
+#SECOND_SCHEDULE_CSV ="data/GWSchedule26_11.csv"
+BIWEEKLY_SCHEDULE_CSV = "data/GWSchedule26_4.csv"
 
 full_players_df = pd.read_csv(FULL_PLAYERS_CSV)
 
@@ -42,6 +46,18 @@ def replace_nan_with_none(obj):
     elif isinstance(obj, float) and np.isnan(obj):
         return None  # JSON does not support NaN, so we replace it with None
     return obj
+
+def get_schedule_paths():
+    current_gw = session.get("current_gw")
+    next_gw = session.get("next_gw")
+
+    if current_gw is None or next_gw is None:
+        raise ValueError("Week selection not set")
+
+    sched_1 = f"data/GWSchedule_{current_gw}.csv"
+    sched_2 = f"data/GWSchedule_{next_gw}.csv"
+
+    return sched_1, sched_2
 
 @app.route("/")
 def home():
@@ -70,8 +86,8 @@ def set_user_team():
     extra_salary = float(data.get("extra_salary", 0))
     updated_players_df = full_players_df.copy()
 
-    for player in user_team:
-        updated_players_df.loc[updated_players_df["Player"] == player["Player"], "$"] = player["$"]
+    # for player in user_team:
+    #     updated_players_df.loc[updated_players_df["Player"] == player["Player"], "$"] = player["$"]
 
     # Match players from session data
     for player in user_team:
@@ -86,7 +102,8 @@ def set_user_team():
             player["Unnamed: 0"] = row_data.get("Unnamed: 0", "unknown")
             player["Pos"] = row_data.get("Pos", "unknown")
             player["Form"] = row_data.get("Form", "unknown")
-            player["$"] = row_data.get("$", "unknown")
+            #player["$"] = row_data.get("$", "unknown")
+            player['$'] = player['$']
             player["TP."] = row_data.get("TP.", "unknown")
             player["team"] = row_data.get("team", "unknown")
 
@@ -116,6 +133,24 @@ def convert_floats(obj):
     elif isinstance(obj, np.float64) or isinstance(obj, np.float32):
         return float(obj)  # ✅ Convert NumPy float to Python float
     return obj
+
+@app.route("/set_week", methods=["POST"])
+def set_week():
+    data = request.get_json()
+
+    gw1 = str(data["current_week"])
+    gw2 = str(data["next_week"])
+
+    schedules = app.config["SCHEDULE_DATA"]
+
+    if gw1 not in schedules or gw2 not in schedules:
+        return jsonify({"error": "Selected week not available"}), 400
+
+    session["schedule_week1"] = schedules[gw1]
+    session["schedule_week2"] = schedules[gw2]
+
+    return jsonify({"message": "✅ Week selection saved"})
+
 
 @app.route("/compute_result", methods=["POST"])
 def compute_result():
@@ -161,25 +196,95 @@ def compute_result():
             "total_price": best_team["$"].sum().round(1)
         }
         return jsonify(response_data)
+    
+    # NEW: Added handler for bi-weekly team finder
+    elif option == "best_biweekly_team":
+        try:
+            biweekly_schedule_df = pd.read_csv(BIWEEKLY_SCHEDULE_CSV)
+        except FileNotFoundError:
+            return jsonify({"error": f"⚠️ Bi-weekly schedule file not found at {BIWEEKLY_SCHEDULE_CSV}"})
+
+        best_team_finder = BestTeamFinder(full_players_df.copy(), salary_cap)
+        top_teams = best_team_finder.find_best_biweekly_team(biweekly_schedule_df, top_n=5)
+
+        if not top_teams:
+            return jsonify({"error": "⚠️ Could not generate any bi-weekly teams."})
+
+        # Convert teams from DataFrames to dictionaries for JSON response
+        response_data["top_teams"] = []
+        for item in top_teams:
+            team_df = item['team']
+            response_data["top_teams"].append({
+                "score": round(item['score'], 2),
+                "team": team_df.to_dict(orient="records"),
+                "total_price": team_df["$"].sum().round(1)
+            })
+        return jsonify(response_data)
 
     elif option == "best_substitutions":
         if not user_team_data:
             return jsonify({"error": "⚠️ Please enter your team first!"})
         start_time = time.time()
-        optimizer = FantasyOptimizer(pd.DataFrame(user_team_data), pd.DataFrame(updated_players_data), SCHEDULE_CSV)
-        best_swaps = optimizer.find_best_weekly_substitutions(extra_salary, top_n) if sub_type == "weekly" else optimizer.find_best_total_substitutions(extra_salary, top_n)
+        # optimizer = FantasyOptimizer(pd.DataFrame(user_team_data), pd.DataFrame(updated_players_data), SCHEDULE_CSV, SECOND_SCHEDULE_CSV)
+        # best_swaps = optimizer.find_best_weekly_substitutions(extra_salary, top_n) if sub_type == "weekly" else optimizer.find_best_total_substitutions(extra_salary, top_n)
 
+        schedule_week1 = session.get("schedule_week1")
+        schedule_week2 = session.get("schedule_week2")
+
+        optimizer = FantasyOptimizer(
+            pd.DataFrame(user_team_data),
+            pd.DataFrame(updated_players_data),
+            schedule_week1,
+            schedule_week2
+        )
+
+
+        if sub_type == "weekly":
+            best_swaps = optimizer.find_best_weekly_substitutions(extra_salary, top_n)
+        elif sub_type == "total":
+            best_swaps = optimizer.find_best_total_substitutions(extra_salary, top_n)
+        elif sub_type == "biweekly":
+            best_swaps = optimizer.find_best_Biweekly_substitutions(extra_salary, top_n)
+        else:
+            return jsonify({"error": "⚠️ Invalid substitution type."})
+        
         end_time = time.time()
         print(f"optimizer runtime: {end_time - start_time:.2f} seconds")
         gc.collect()
 
         if not best_swaps:
             return jsonify({"error": "⚠️ No valid substitutions found."})
-        if sub_type == "weekly":
+        # if sub_type == "weekly":
 
+        #     response_data["top_substitutions"] = [
+        #         {
+        #             "new_form" : swap[0],
+        #             "current_form": swap[1],
+        #             "new_salary": swap[2],
+        #             "substitutions_out": list(swap[3]),
+        #             "substitutions_in": list(swap[4]),
+        #             "new_team": clean_dict_keys(swap[5]),
+        #             "weekly_sched": json.dumps(convert_floats(swap[6]))
+        #         }
+        #         for swap in best_swaps
+        #     ]
+        # else:
+        #     response_data["top_substitutions"] = [
+        #         {
+        #             "form_gain" : swap[0],
+        #             "new_form" : swap[1],
+        #             "current_form": swap[2],
+        #             "new_salary": swap[3],
+        #             "substitutions_out": swap[4],
+        #             "substitutions_in": swap[5],
+        #             "new_team": clean_dict_keys(swap[6]),
+        #         }
+        #         for swap in best_swaps
+        #     ]
+        if sub_type == "weekly":
             response_data["top_substitutions"] = [
                 {
-                    "new_form" : swap[0],
+                    "new_form": swap[0],
                     "current_form": swap[1],
                     "new_salary": swap[2],
                     "substitutions_out": list(swap[3]),
@@ -189,11 +294,11 @@ def compute_result():
                 }
                 for swap in best_swaps
             ]
-        else:
+        elif sub_type == "total":
             response_data["top_substitutions"] = [
                 {
-                    "form_gain" : swap[0],
-                    "new_form" : swap[1],
+                    "form_gain": swap[0],
+                    "new_form": swap[1],
                     "current_form": swap[2],
                     "new_salary": swap[3],
                     "substitutions_out": swap[4],
@@ -202,6 +307,34 @@ def compute_result():
                 }
                 for swap in best_swaps
             ]
+        elif sub_type == "biweekly":
+            response_data["top_substitutions"] = []
+            for plan in best_swaps:
+                w1 = plan["week1"]
+                w2 = plan["week2"]
+                response_data["top_substitutions"].append({
+                    "total_biweekly_form": plan["total_biweekly_form"],
+                    "week1": {
+                        "new_form": w1["new_form"],
+                        "current_form": w1["current_form"],
+                        "salary": w1["salary"],
+                        "substitutions_out": w1["out"],
+                        "substitutions_in": w1["in"],
+                        "new_team": clean_dict_keys(w1["team"]),
+                        "weekly_sched": json.dumps(convert_floats(w1["weekly_sched"]))
+                    },
+                    "week2": {
+                        "new_form": w2["new_form"],
+                        "current_form": w2["current_form"],
+                        "salary": w2["salary"],
+                        "substitutions_out": w2["out"],
+                        "substitutions_in": w2["in"],
+                        "new_team": clean_dict_keys(w2["team"]),
+                        "weekly_sched": json.dumps(convert_floats(w2["weekly_sched"]))
+                    }
+                })
+
+        
         return jsonify(response_data)
 
     return jsonify({"error": "⚠️ Invalid option selected."})
@@ -213,8 +346,15 @@ def print_weekly_schedule():
     if not user_team_data:
         return jsonify({"error": "⚠️ No team has been entered yet!"})
 
+    schedule_week1 = session.get("schedule_week1")
+
     user_team = pd.DataFrame(user_team_data)
-    optimizer = FantasyOptimizer(user_team, full_players_df, SCHEDULE_CSV)
+    optimizer = FantasyOptimizer(
+        user_team,
+        full_players_df,
+        schedule_week1,
+        schedule_week1
+    )
     weekly_schedule = optimizer.print_weekly_form()
 
     return jsonify({"weekly_schedule": weekly_schedule})

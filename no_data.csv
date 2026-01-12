@@ -1,0 +1,471 @@
+PLAYER_NAME,TEAM
+Isaac Humphries,Hawks
+Jonathan Gibson,Celtics
+Marcus Morris Sr.,Celtics
+RJ Hunter,Celtics
+PJ Dozier,Celtics
+JR Smith,Cavaliers
+Christian Wood,Pelicans
+Timothe Luwawu-Cabarrot,Bulls
+Wayne Selden,Bulls
+Walt Lemon Jr.,Bulls
+Justin Jackson,Mavericks
+Shai Gilgeous-Alexander,Clippers
+Jemerrio Jones,Lakers
+Reggie Bullock Jr.,Lakers
+Tim Frazier,Bucks
+Cam Reynolds,Timberwolves
+Dario Šarić,Timberwolves
+Mitchell Creek,Timberwolves
+Billy Garrett,Knicks
+Henry Ellenson,Knicks
+John Jenkins,Knicks
+Jarell Martin,Magic
+Jerian Grant,Magic
+Cory Joseph,Pacers
+Jonathon Simmons,76ers
+JJ Redick,76ers
+Jimmy Butler III,76ers
+Greg Monroe,76ers
+Mikal Bridges,Suns
+Ray Spalding,Suns
+Jimmer Fredette,Suns
+Damian Lillard,Trail Blazers
+Enes Freedom,Trail Blazers
+Evan Turner,Trail Blazers
+CJ McCollum,Trail Blazers
+Maurice Harkless,Trail Blazers
+Rodney Hood,Trail Blazers
+Al-Farouq Aminu,Trail Blazers
+Gary Trent Jr.,Trail Blazers
+Jake Layman,Trail Blazers
+Meyers Leonard,Trail Blazers
+Skal Labissiere,Trail Blazers
+Anfernee Simons,Trail Blazers
+Jusuf Nurkić,Trail Blazers
+Seth Curry,Trail Blazers
+Zach Collins,Trail Blazers
+Yogi Ferrell,Kings
+BJ Johnson,Kings
+Frank Mason III,Kings
+Alec Burks,Kings
+Corey Brewer,Kings
+Quincy Pondexter,Spurs
+Donatas Motiejunas,Spurs
+OG Anunoby,Raptors
+Eric Moreland,Raptors
+Jodie Meeks,Raptors
+Delon Wright,Grizzlies
+CJ Miles,Grizzlies
+Justin Holiday,Grizzlies
+Tyler Zeller,Grizzlies
+Wesley Johnson,Wizards
+Bobby Portis,Wizards
+Tarik Phillip,Wizards
+Langston Galloway,Pistons
+Treveon Graham,Hawks
+Skal Labissiere,Hawks
+Damian Jones,Hawks
+Jordan Bell,Cavaliers
+JJ Redick,Pelicans
+Tyler Cook,Nuggets
+PJ Dozier,Nuggets
+Mychal Mulder,Warriors
+Marcus Morris Sr.,Clippers
+Joakim Noah,Clippers
+Treveon Graham,Hawks
+Skal Labissiere,Hawks
+JR Smith,Lakers
+Quinn Cook,Lakers
+KZ Okpala,Heat
+Jimmy Butler III,Heat
+Solomon Hill,Heat
+Frank Mason III,Bucks
+James Johnson,Timberwolves
+Justin Anderson,Nets
+Lance Thomas,Nets
+Theo Pinson,Knicks
+RJ Barrett,Knicks
+Reggie Bullock Jr.,Knicks
+Gary Clark,Magic
+BJ Johnson,Magic
+Raul Neto,76ers
+Ryan Broekhoff,76ers
+Jevon Carter,Suns
+Carmelo Anthony,Trail Blazers
+Moses Brown,Trail Blazers
+Jaylen Hoard,Trail Blazers
+Trevor Ariza,Trail Blazers
+Nassir Little,Trail Blazers
+Jaylen Adams,Trail Blazers
+Hassan Whiteside,Trail Blazers
+Wenyen Gabriel,Trail Blazers
+Mario Hezonja,Trail Blazers
+Caleb Swanigan,Trail Blazers
+Cory Joseph,Kings
+Devon Hall,Thunder
+Terence Davis,Raptors
+Gorgui Dieng,Grizzlies
+Anthony Tolliver,Grizzlies
+Jarrod Uthoff,Wizards
+Jerian Grant,Wizards
+Justin Patton,Pistons
+Jordan McRae,Pistons
+Moses Brown,Celtics
+Jeremiah Martin,Cavaliers
+Mfiondu Kabengele,Cavaliers
+Brodric Thomas,Cavaliers
+James Nunnally,Pelicans
+Al-Farouq Aminu,Bulls
+JJ Redick,Mavericks
+Danté Exum,Rockets
+KJ Martin,Rockets
+Yogi Ferrell,Clippers
+Ben McLemore,Lakers
+Precious Achiuwa,Heat
+Elijah Bryant,Bucks
+Ed Davis,Timberwolves
+Mike James,Nets
+Norvel Pelle,Knicks
+Dwayne Bacon,Magic
+Sindarius Thornwell,Magic
+Amida Brimah,Pacers
+Gary Clark,76ers
+E'Twaun Moore,Suns
+Rondae Hollis-Jefferson,Trail Blazers
+Harry Giles III,Trail Blazers
+Derrick Jones Jr.,Trail Blazers
+CJ Elleby,Trail Blazers
+T.J. Leaf,Trail Blazers
+Keljin Blevins,Trail Blazers
+Robert Covington,Trail Blazers
+Norman Powell,Trail Blazers
+Delon Wright,Kings
+Kemba Walker,Thunder
+Charlie Brown Jr.,Thunder
+Freddie Gillespie,Raptors
+Tim Frazier,Grizzlies
+Caleb Homesley,Wizards
+Chandler Hutchison,Wizards
+Alex Len,Wizards
+Tyler Cook,Pistons
+Brad Wanamaker,Hornets
+Kevin Knox II,Hawks
+Matt Ryan,Celtics
+Brandon Goodwin,Cavaliers
+Ruben Nembhard Jr.,Cavaliers
+Moses Brown,Cavaliers
+CJ McCollum,Pelicans
+Gary Clark,Pelicans
+Tony Snell,Pelicans
+Malcolm Hill,Bulls
+Moses Wright,Mavericks
+Reggie Bullock Jr.,Mavericks
+Bryn Forbes,Nuggets
+Chris Chiozza,Warriors
+Rodney Hood,Clippers
+D.J. Augustin,Lakers
+Stanley Johnson,Lakers
+Mac McClung,Lakers
+Mason Jones,Lakers
+Rayjon Tucker,Bucks
+Feron Hunt,Knicks
+Gabe York,Pacers
+Ricky Rubio,Pacers
+Gabriel Lundberg,Suns
+Joe Ingles,Trail Blazers
+Trendon Watford,Trail Blazers
+Greg Brown III,Trail Blazers
+Eric Bledsoe,Trail Blazers
+Keon Johnson,Trail Blazers
+Brandon Williams,Trail Blazers
+Josh Hart,Trail Blazers
+Elijah Hughes,Trail Blazers
+Ben McLemore,Trail Blazers
+Justise Winslow,Trail Blazers
+Didi Louzada,Trail Blazers
+Donte DiVincenzo,Kings
+DJ Stewart,Spurs
+Robert Woodard II,Spurs
+Melvin Frazier Jr.,Thunder
+Armoni Brooks,Raptors
+Nickeil Alexander-Walker,Jazz
+Xavier Sneed,Jazz
+Juancho Hernangomez,Jazz
+Jordan Schakel,Wizards
+Carsen Edwards,Pistons
+Braxton Key,Pistons
+Isaiah Thomas,Hornets
+JT Thor,Hornets
+Arnoldas Kulboka,Hornets
+AJ Griffin,Hawks
+JD Davison,Celtics
+Mfiondu Kabengele,Celtics
+Mike Muscala,Celtics
+Justin Champagnie,Celtics
+Isaiah Mobley,Cavaliers
+Mamadi Diakite,Cavaliers
+Patrick Beverley,Bulls
+Justin Holiday,Mavericks
+A.J. Lawson,Mavericks
+DeAndre Jordan,Nuggets
+Reggie Jackson,Nuggets
+Thomas Bryant,Nuggets
+Anthony Lamb,Warriors
+Trevor Hudgins,Rockets
+Boban Marjanović,Rockets
+Shaquille Harrison,Lakers
+Malik Beasley,Lakers
+Tristan Thompson,Lakers
+Scotty Pippen Jr.,Lakers
+AJ Green,Bucks
+Nickeil Alexander-Walker,Timberwolves
+RaiQuan Gray,Nets
+Mikal Bridges,Nets
+Jordan Nwora,Pacers
+Louis King,76ers
+Darius Bazley,Suns
+Matisse Thybulle,Trail Blazers
+Cam Reddish,Trail Blazers
+Jerami Grant,Trail Blazers
+Kevin Knox II,Trail Blazers
+Shaedon Sharpe,Trail Blazers
+John Butler Jr.,Trail Blazers
+Drew Eubanks,Trail Blazers
+Jabari Walker,Trail Blazers
+Ibou Badji,Trail Blazers
+Nate Williams,Trail Blazers
+PJ Dozier,Kings
+Dario Šarić,Thunder
+Jeff Dowtin Jr.,Raptors
+Vernon Carey Jr.,Jazz
+Damian Jones,Jazz
+Juan Toscano-Anderson,Jazz
+Jacob Gilyard,Grizzlies
+Jordan Goodwin,Wizards
+Xavier Cooks,Wizards
+Kendrick Nunn,Wizards
+Jared Rhoden,Pistons
+James Wiseman,Pistons
+R.J. Hampton,Pistons
+Buddy Boeheim,Pistons
+Svi Mykhailiuk,Hornets
+Xavier Sneed,Hornets
+Dylan Windler,Hawks
+Georges Niang,Cavaliers
+Marcus Morris Sr.,Cavaliers
+Damian Jones,Cavaliers
+Andrew Funk,Bulls
+Alex Fudge,Mavericks
+Justin Holiday,Nuggets
+Jerome Robinson,Warriors
+Aaron Holiday,Rockets
+Reggie Bullock Jr.,Rockets
+Kai Jones,Clippers
+Skylar Mays,Lakers
+Harry Giles III,Lakers
+Spencer Dinwiddie,Lakers
+Patty Mills,Heat
+Danilo Gallinari,Bucks
+T.J. Warren,Timberwolves
+Jacob Gilyard,Nets
+Dennis Schröder,Nets
+Keon Johnson,Nets
+Charlie Brown Jr.,Knicks
+OG Anunoby,Knicks
+Shake Milton,Knicks
+Mamadi Diakite,Knicks
+Isaiah Wong,Pacers
+Quenton Jackson,Pacers
+Oscar Tshiebwe,Pacers
+KJ Martin,76ers
+Jeff Dowtin Jr.,76ers
+Buddy Hield,76ers
+David Roddy,Suns
+Thaddeus Young,Suns
+Scoot Henderson,Trail Blazers
+Deandre Ayton,Trail Blazers
+Dalano Banton,Trail Blazers
+Kris Murray,Trail Blazers
+Malcolm Brogdon,Trail Blazers
+Ashton Hagans,Trail Blazers
+Justin Minaya,Trail Blazers
+Duop Reath,Trail Blazers
+Toumani Camara,Trail Blazers
+Robert Williams III,Trail Blazers
+Rayan Rupert,Trail Blazers
+Mason Jones,Kings
+RaiQuan Gray,Spurs
+Jamaree Bouyea,Spurs
+David Duke Jr.,Spurs
+Bismack Biyombo,Thunder
+Keyontae Johnson,Thunder
+Malik Williams,Raptors
+Jalen McDaniels,Raptors
+RJ Barrett,Raptors
+Jordan Nwora,Raptors
+Jason Preston,Jazz
+Kira Lewis Jr.,Jazz
+GG Jackson,Grizzlies
+Trey Jemison III,Grizzlies
+Jared Butler,Wizards
+Jules Bernard,Wizards
+Chimezie Metu,Pistons
+Troy Brown Jr.,Pistons
+Malachi Flynn,Pistons
+Tosan Evbuomwan,Pistons
+Marques Bolden,Hornets
+Terance Mann,Hawks
+Daeqwon Plowden,Hawks
+Miles Norris,Celtics
+Javonte Green,Cavaliers
+Chuma Okeke,Cavaliers
+Luke Travers,Cavaliers
+Keion Brooks Jr.,Pelicans
+Lester Quinones,Pelicans
+Jahmir Young,Bulls
+Zach Collins,Bulls
+Emanuel Miller,Bulls
+Max Christie,Mavericks
+Kessler Edwards,Mavericks
+PJ Hall,Nuggets
+Trey Alexander,Nuggets
+Taran Armstrong,Warriors
+Buddy Hield,Warriors
+Jimmy Butler III,Warriors
+Braxton Key,Warriors
+Kevin Knox II,Warriors
+Jackson Rowe,Warriors
+N'Faly Dante,Rockets
+David Roddy,Rockets
+Jack McVeigh,Rockets
+Seth Lundy,Clippers
+Patrick Baldwin Jr.,Clippers
+Dalton Knecht,Lakers
+Shake Milton,Lakers
+Alex Len,Lakers
+Josh Christopher,Heat
+Kyle Anderson,Heat
+Kevin Porter Jr.,Bucks
+Jamaree Bouyea,Bucks
+Stanley Umude,Bucks
+Kyle Kuzma,Bucks
+Tristen Newton,Timberwolves
+Jesse Edwards,Timberwolves
+Bones Hyland,Timberwolves
+Tyson Etienne,Nets
+Tosan Evbuomwan,Nets
+Tyrese Martin,Nets
+De'Anthony Melton,Nets
+Drew Timme,Nets
+MarJon Beauchamp,Knicks
+P.J. Tucker,Knicks
+Mikal Bridges,Knicks
+Anton Watson,Knicks
+Desmond Bane,Magic
+Mac McClung,Magic
+Ethan Thompson,Magic
+Thomas Bryant,Pacers
+RayJ Dennis,Pacers
+Jared Butler,76ers
+Jalen Bridges,Suns
+Deni Avdija,Trail Blazers
+Bryce McGowens,Trail Blazers
+Donovan Clingan,Trail Blazers
+Sidy Cissoko,Trail Blazers
+Jonas Valančiūnas,Kings
+Chris Paul,Spurs
+Bismack Biyombo,Spurs
+Riley Minix,Spurs
+Harrison Barnes,Spurs
+Harrison Ingram,Spurs
+Nikola Topić,Thunder
+A.J. Lawson,Raptors
+KJ Martin,Jazz
+Kentavious Caldwell-Pope,Grizzlies
+Cole Anthony,Grizzlies
+Jaylen Martin,Wizards
+AJ Johnson,Wizards
+Bub Carrington,Wizards
+JT Thor,Wizards
+Ronald Holland II,Pistons
+Malik Beasley,Pistons
+Ron Harper Jr.,Pistons
+Daniss Jenkins,Pistons
+Tolu Smith,Pistons
+Lindy Waters III,Pistons
+KJ Simpson,Hornets
+Armon Johnson,Trail Blazers
+Wesley Matthews,Trail Blazers
+Gerald Wallace,Trail Blazers
+Rudy Fernandez,Trail Blazers
+Brandon Roy,Trail Blazers
+Patty Mills,Trail Blazers
+Elliot Williams,Trail Blazers
+Luke Babbitt,Trail Blazers
+LaMarcus Aldridge,Trail Blazers
+Chris Johnson,Trail Blazers
+Marcus Camby,Trail Blazers
+Andre Miller,Trail Blazers
+Earl Barron,Trail Blazers
+Greg Oden,Trail Blazers
+Nicolas Batum,Trail Blazers
+Jonny Flynn,Trail Blazers
+Nolan Smith,Trail Blazers
+Raymond Felton,Trail Blazers
+Shawne Williams,Trail Blazers
+Joel Przybilla,Trail Blazers
+Jamal Crawford,Trail Blazers
+JJ Hickson,Trail Blazers
+Hasheem Thabeet,Trail Blazers
+Kurt Thomas,Trail Blazers
+Craig Smith,Trail Blazers
+Jared Jeffries,Trail Blazers
+Sasha Pavlovic,Trail Blazers
+Will Barton,Trail Blazers
+Eric Maynor,Trail Blazers
+Victor Claver,Trail Blazers
+Joel Freeland,Trail Blazers
+Dorell Wright,Trail Blazers
+Earl Watson,Trail Blazers
+Allen Crabbe,Trail Blazers
+Mo Williams,Trail Blazers
+Thomas Robinson,Trail Blazers
+Robin Lopez,Trail Blazers
+Arron Afflalo,Trail Blazers
+Steve Blake,Trail Blazers
+Tim Frazier,Trail Blazers
+Alonzo Gee,Trail Blazers
+Chris Kaman,Trail Blazers
+Brian Roberts,Trail Blazers
+Pat Connaughton,Trail Blazers
+Gerald Henderson,Trail Blazers
+Ed Davis,Trail Blazers
+Noah Vonleh,Trail Blazers
+Mason Plumlee,Trail Blazers
+Cliff Alexander,Trail Blazers
+Luis Montero,Trail Blazers
+Shabazz Napier,Trail Blazers
+Festus Ezeli,Trail Blazers
+Tim Quarterman,Trail Blazers
+Wade Baldwin IV,Trail Blazers
+Georgios Papagiannis,Trail Blazers
+C.J. Wilcox,Trail Blazers
+Earl Barron,Blazers
+Jonny Flynn,Blazers
+JJ Hickson,Blazers
+Hasheem Thabeet,Blazers
+Craig Smith,Blazers
+CJ McCollum,Blazers
+Steve Blake,Blazers
+Tim Frazier,Blazers
+Brian Roberts,Blazers
+Mason Plumlee,Blazers
+Trevor Ariza,Blazers
+Rondae Hollis-Jefferson,Blazers
+CJ Elleby,Blazers
+Joe Ingles,Blazers
+Kevin Knox II,Blazers
+Nate Williams,Blazers
+Ashton Hagans,Blazers
+Bryce McGowens,Blazers

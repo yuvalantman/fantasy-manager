@@ -1,0 +1,509 @@
+PLAYER_NAME,PLAYER_ID,TEAM
+Donovan Williams,1631495,Hawks
+Bruno Fernando,1628981,Hawks
+Jalen Johnson,1630552,Hawks
+Trent Forrest,1630235,Hawks
+Aaron Holiday,1628988,Hawks
+Dejounte Murray,1627749,Hawks
+Trae Young,1629027,Hawks
+De'Andre Hunter,1629631,Hawks
+Bogdan Bogdanović,203992,Hawks
+AJ Griffin,1631100,Hawks
+Clint Capela,203991,Hawks
+Onyeka Okongwu,1630168,Hawks
+John Collins,1628381,Hawks
+Tyrese Martin,1631213,Hawks
+Garrison Mathews,1629726,Hawks
+Vít Krejčí,1630249,Hawks
+Saddiq Bey,1630180,Hawks
+Jayson Tatum,1628369,Celtics
+Jaylen Brown,1627759,Celtics
+Danilo Gallinari,201568,Celtics
+Derrick White,1628401,Celtics
+Payton Pritchard,1630202,Celtics
+Grant Williams,1629684,Celtics
+Malcolm Brogdon,1627763,Celtics
+JD Davison,1631120,Celtics
+Mfiondu Kabengele,1629662,Celtics
+Sam Hauser,1630573,Celtics
+Marcus Smart,203935,Celtics
+Luke Kornet,1628436,Celtics
+Al Horford,201143,Celtics
+Robert Williams III,1629057,Celtics
+Mike Muscala,203488,Celtics
+Blake Griffin,201933,Celtics
+Justin Champagnie,1630551,Celtics
+Caris LeVert,1627747,Cavaliers
+Evan Mobley,1630596,Cavaliers
+Lamar Stevens,1630205,Cavaliers
+Dylan Windler,1629685,Cavaliers
+Darius Garland,1629636,Cavaliers
+Ricky Rubio,201937,Cavaliers
+Danny Green,201980,Cavaliers
+Isaiah Mobley,1630600,Cavaliers
+Cedi Osman,1626224,Cavaliers
+Raul Neto,203526,Cavaliers
+Sam Merrill,1630241,Cavaliers
+Mamadi Diakite,1629603,Cavaliers
+Jarrett Allen,1628386,Cavaliers
+Dean Wade,1629731,Cavaliers
+Robin Lopez,201577,Cavaliers
+Isaac Okoro,1630171,Cavaliers
+Donovan Mitchell,1628378,Cavaliers
+Dereon Seabron,1631220,Pelicans
+Zion Williamson,1629627,Pelicans
+Josh Richardson,1626196,Pelicans
+CJ McCollum,203468,Pelicans
+Herbert Jones,1630529,Pelicans
+Naji Marshall,1630230,Pelicans
+Willy Hernangomez,1626195,Pelicans
+Jaxson Hayes,1629637,Pelicans
+Dyson Daniels,1630700,Pelicans
+Kira Lewis Jr.,1630184,Pelicans
+Brandon Ingram,1627742,Pelicans
+Jose Alvarado,1630631,Pelicans
+Jonas Valančiūnas,202685,Pelicans
+Larry Nance Jr.,1626204,Pelicans
+Trey Murphy III,1630530,Pelicans
+E.J. Liddell,1630604,Pelicans
+Garrett Temple,202066,Pelicans
+Coby White,1629632,Bulls
+Lonzo Ball,1628366,Bulls
+Andre Drummond,203083,Bulls
+Derrick Jones Jr.,1627884,Bulls
+Alex Caruso,1627936,Bulls
+Zach LaVine,203897,Bulls
+Nikola Vučević,202696,Bulls
+DeMar DeRozan,201942,Bulls
+Ayo Dosunmu,1630245,Bulls
+Marko Simonovic,1630250,Bulls
+Patrick Beverley,201976,Bulls
+Carlik Jones,1630637,Bulls
+Javonte Green,1629750,Bulls
+Dalen Terry,1631207,Bulls
+Terry Taylor,1630678,Bulls
+Justin Lewis,1631171,Bulls
+Patrick Williams,1630172,Bulls
+JaVale McGee,201580,Mavericks
+Justin Holiday,203200,Mavericks
+Theo Pinson,1629033,Mavericks
+Kyrie Irving,202681,Mavericks
+Jaden Hardy,1630702,Mavericks
+Dwight Powell,203939,Mavericks
+Josh Green,1630182,Mavericks
+A.J. Lawson,1630639,Mavericks
+Tim Hardaway Jr.,203501,Mavericks
+Markieff Morris,202693,Mavericks
+Frank Ntilikina,1628373,Mavericks
+McKinley Wright IV,1630593,Mavericks
+Reggie Bullock Jr.,203493,Mavericks
+Christian Wood,1626174,Mavericks
+Maxi Kleber,1628467,Mavericks
+Dāvis Bertāns,202722,Mavericks
+Luka Dončić,1629029,Mavericks
+Christian Braun,1631128,Nuggets
+Michael Porter Jr.,1629008,Nuggets
+Kentavious Caldwell-Pope,203484,Nuggets
+DeAndre Jordan,201599,Nuggets
+Reggie Jackson,202704,Nuggets
+Peyton Watson,1631212,Nuggets
+Jack White,1631298,Nuggets
+Bruce Brown,1628971,Nuggets
+Thomas Bryant,1628418,Nuggets
+Ish Smith,202397,Nuggets
+Nikola Jokić,203999,Nuggets
+Collin Gillespie,1631221,Nuggets
+Zeke Nnaji,1630192,Nuggets
+Jamal Murray,1627750,Nuggets
+Vlatko Čančar,1628427,Nuggets
+Jeff Green,201145,Nuggets
+Aaron Gordon,203932,Nuggets
+Donte DiVincenzo,1628978,Warriors
+Jonathan Kuminga,1630228,Warriors
+JaMychal Green,203210,Warriors
+Ryan Rollins,1631157,Warriors
+Jordan Poole,1629673,Warriors
+Moses Moody,1630541,Warriors
+Kevon Looney,1626172,Warriors
+Patrick Baldwin Jr.,1631116,Warriors
+Gary Payton II,1627780,Warriors
+Andre Iguodala,2738,Warriors
+Ty Jerome,1629660,Warriors
+Klay Thompson,202691,Warriors
+Andrew Wiggins,203952,Warriors
+Draymond Green,203110,Warriors
+Lester Quinones,1631311,Warriors
+Stephen Curry,201939,Warriors
+Anthony Lamb,1630237,Warriors
+TyTy Washington Jr.,1631102,Rockets
+Willie Cauley-Stein,1626161,Rockets
+Jabari Smith Jr.,1631095,Rockets
+Kevin Porter Jr.,1629645,Rockets
+Jalen Green,1630224,Rockets
+D.J. Augustin,201571,Rockets
+Darius Days,1630620,Rockets
+KJ Martin,1630231,Rockets
+Jae'Sean Tate,1630256,Rockets
+Josh Christopher,1630528,Rockets
+Trevor Hudgins,1631309,Rockets
+Daishen Nix,1630227,Rockets
+Usman Garuba,1630586,Rockets
+Tari Eason,1631106,Rockets
+Alperen Sengun,1630578,Rockets
+Frank Kaminsky,1626163,Rockets
+Boban Marjanović,1626246,Rockets
+Russell Westbrook,201566,Clippers
+Kawhi Leonard,202695,Clippers
+Brandon Boston,1630527,Clippers
+Bones Hyland,1630538,Clippers
+Amir Coffey,1629599,Clippers
+Marcus Morris Sr.,202694,Clippers
+Eric Gordon,201569,Clippers
+Paul George,202331,Clippers
+Terance Mann,1629611,Clippers
+Xavier Moon,1629875,Clippers
+Jason Preston,1630554,Clippers
+Robert Covington,203496,Clippers
+Norman Powell,1626181,Clippers
+Moussa Diabaté,1631217,Clippers
+Nicolas Batum,201587,Clippers
+Ivica Zubac,1627826,Clippers
+Mason Plumlee,203486,Clippers
+Shaquille Harrison,1627885,Lakers
+D'Angelo Russell,1626156,Lakers
+Jarred Vanderbilt,1629020,Lakers
+Anthony Davis,203076,Lakers
+Lonnie Walker IV,1629022,Lakers
+Malik Beasley,1627736,Lakers
+LeBron James,2544,Lakers
+Troy Brown Jr.,1628972,Lakers
+Tristan Thompson,202684,Lakers
+Max Christie,1631108,Lakers
+Mo Bamba,1628964,Lakers
+Scotty Pippen Jr.,1630590,Lakers
+Austin Reaves,1630559,Lakers
+Dennis Schröder,203471,Lakers
+Cole Swider,1631306,Lakers
+Rui Hachimura,1629060,Lakers
+Wenyen Gabriel,1629117,Lakers
+Kevin Love,201567,Heat
+Gabe Vincent,1629216,Heat
+Victor Oladipo,203506,Heat
+Nikola Jović,1631107,Heat
+Kyle Lowry,200768,Heat
+Jamal Cain,1631288,Heat
+Bam Adebayo,1628389,Heat
+Tyler Herro,1629639,Heat
+Caleb Martin,1628997,Heat
+Jimmy Butler III,202710,Heat
+Haywood Highsmith,1629312,Heat
+Orlando Robinson,1631115,Heat
+Max Strus,1629622,Heat
+Udonis Haslem,2617,Heat
+Cody Zeller,203469,Heat
+Duncan Robinson,1629130,Heat
+Omer Yurtseven,1630209,Heat
+MarJon Beauchamp,1630699,Bucks
+Meyers Leonard,203086,Bucks
+Jevon Carter,1628975,Bucks
+Joe Ingles,204060,Bucks
+Bobby Portis,1626171,Bucks
+Brook Lopez,201572,Bucks
+Grayson Allen,1628960,Bucks
+AJ Green,1631260,Bucks
+Jrue Holiday,201950,Bucks
+Khris Middleton,203114,Bucks
+Wesley Matthews,202083,Bucks
+Pat Connaughton,1626192,Bucks
+Lindell Wigginton,1629623,Bucks
+Goran Dragic,201609,Bucks
+Giannis Antetokounmpo,203507,Bucks
+Thanasis Antetokounmpo,203648,Bucks
+Jae Crowder,203109,Bucks
+Anthony Edwards,1630162,Timberwolves
+Jaden McDaniels,1630183,Timberwolves
+Jaylen Nowell,1629669,Timberwolves
+Kyle Anderson,203937,Timberwolves
+Jordan McLaughlin,1629162,Timberwolves
+Wendell Moore Jr.,1631111,Timberwolves
+Josh Minott,1631169,Timberwolves
+Nickeil Alexander-Walker,1629638,Timberwolves
+Mike Conley,201144,Timberwolves
+Naz Reid,1629675,Timberwolves
+Taurean Prince,1627752,Timberwolves
+Nathan Knight,1630233,Timberwolves
+Austin Rivers,203085,Timberwolves
+Rudy Gobert,203497,Timberwolves
+Karl-Anthony Towns,1626157,Timberwolves
+Matt Ryan,1630346,Timberwolves
+Luka Garza,1630568,Timberwolves
+Royce O'Neale,1626220,Nets
+RaiQuan Gray,1630564,Nets
+Mikal Bridges,1628969,Nets
+Cameron Johnson,1629661,Nets
+Edmond Sumner,1628410,Nets
+David Duke Jr.,1630561,Nets
+Patty Mills,201988,Nets
+Dru Smith,1630696,Nets
+Ben Simmons,1627732,Nets
+Joe Harris,203925,Nets
+Yuta Watanabe,1629139,Nets
+Day'Ron Sharpe,1630549,Nets
+Cam Thomas,1630560,Nets
+Spencer Dinwiddie,203915,Nets
+Dorian Finney-Smith,1627827,Nets
+Seth Curry,203552,Nets
+Nic Claxton,1629651,Nets
+Obi Toppin,1630167,Knicks
+Miles McBride,1630540,Knicks
+Trevor Keels,1631211,Knicks
+Josh Hart,1628404,Knicks
+Derrick Rose,201565,Knicks
+Duane Washington Jr.,1630613,Knicks
+Immanuel Quickley,1630193,Knicks
+Quentin Grimes,1629656,Knicks
+DaQuan Jeffries,1629610,Knicks
+RJ Barrett,1629628,Knicks
+Jalen Brunson,1628973,Knicks
+Evan Fournier,203095,Knicks
+Isaiah Roby,1629676,Knicks
+Mitchell Robinson,1629011,Knicks
+Julius Randle,203944,Knicks
+Jericho Sims,1630579,Knicks
+Isaiah Hartenstein,1628392,Knicks
+Jonathan Isaac,1628371,Magic
+Caleb Houstan,1631216,Magic
+Chuma Okeke,1629643,Magic
+Jalen Suggs,1630591,Magic
+Paolo Banchero,1631094,Magic
+Kevon Harris,1630284,Magic
+Bol Bol,1629626,Magic
+Michael Carter-Williams,203487,Magic
+Gary Harris,203914,Magic
+Markelle Fultz,1628365,Magic
+Moritz Wagner,1629021,Magic
+Franz Wagner,1630532,Magic
+Admiral Schofield,1629678,Magic
+Wendell Carter Jr.,1628976,Magic
+Cole Anthony,1630175,Magic
+Goga Bitadze,1629048,Magic
+Tyrese Haliburton,1630169,Pacers
+Bennedict Mathurin,1631097,Pacers
+Andrew Nembhard,1629614,Pacers
+Chris Duarte,1630537,Pacers
+George Hill,201588,Pacers
+T.J. McConnell,204456,Pacers
+Kendall Brown,1631112,Pacers
+Oshae Brissett,1629052,Pacers
+Jordan Nwora,1629670,Pacers
+James Johnson,201949,Pacers
+Isaiah Jackson,1630543,Pacers
+Aaron Nesmith,1630174,Pacers
+Buddy Hield,1627741,Pacers
+Jalen Smith,1630188,Pacers
+Daniel Theis,1628464,Pacers
+Gabe York,1628221,Pacers
+Myles Turner,1626167,Pacers
+Tyrese Maxey,1630178,76ers
+James Harden,201935,76ers
+Montrezl Harrell,1626149,76ers
+Jalen McDaniels,1629667,76ers
+De'Anthony Melton,1629001,76ers
+Mac McClung,1630644,76ers
+Jaden Springer,1630531,76ers
+Tobias Harris,202699,76ers
+Dewayne Dedmon,203473,76ers
+P.J. Tucker,200782,76ers
+Shake Milton,1629003,76ers
+Georges Niang,1627777,76ers
+Joel Embiid,203954,76ers
+Louis King,1629663,76ers
+Danuel House Jr.,1627863,76ers
+Furkan Korkmaz,1627788,76ers
+Paul Reed,1630194,76ers
+Torrey Craig,1628470,Suns
+Devin Booker,1626164,Suns
+Josh Okogie,1629006,Suns
+Chris Paul,101108,Suns
+Terrence Ross,203082,Suns
+Damion Lee,1627814,Suns
+Jock Landale,1629111,Suns
+Ish Wainright,1630688,Suns
+Landry Shamet,1629013,Suns
+Cameron Payne,1626166,Suns
+Bismack Biyombo,202687,Suns
+T.J. Warren,203933,Suns
+Deandre Ayton,1629028,Suns
+Kevin Durant,201142,Suns
+Saben Lee,1630240,Suns
+Darius Bazley,1629647,Suns
+Damian Lillard,203081,Trail Blazers
+Anfernee Simons,1629014,Trail Blazers
+Trendon Watford,1630570,Trail Blazers
+Matisse Thybulle,1629680,Trail Blazers
+Cam Reddish,1629629,Trail Blazers
+Keon Johnson,1630553,Trail Blazers
+Jerami Grant,203924,Trail Blazers
+Nassir Little,1629642,Trail Blazers
+Kevin Knox II,1628995,Trail Blazers
+Shaedon Sharpe,1631101,Trail Blazers
+John Butler Jr.,1631219,Trail Blazers
+Drew Eubanks,1629234,Trail Blazers
+Justise Winslow,1626159,Trail Blazers
+Jusuf Nurkić,203994,Trail Blazers
+Jabari Walker,1631133,Trail Blazers
+Ibou Badji,1630641,Trail Blazers
+Nate Williams,1631466,Trail Blazers
+Malik Monk,1628370,Kings
+Terence Davis,1629056,Kings
+De'Aaron Fox,1628368,Kings
+Chimezie Metu,1629002,Kings
+Matthew Dellavedova,203521,Kings
+Kevin Huerter,1628989,Kings
+Domantas Sabonis,1627734,Kings
+Keegan Murray,1631099,Kings
+Davion Mitchell,1630558,Kings
+Kessler Edwards,1630556,Kings
+Richaun Holmes,1626158,Kings
+Keon Ellis,1631165,Kings
+Alex Len,203458,Kings
+PJ Dozier,1628408,Kings
+Harrison Barnes,203084,Kings
+Trey Lyles,1626168,Kings
+Neemias Queta,1629674,Kings
+Keldon Johnson,1629640,Spurs
+Devonte' Graham,1628984,Spurs
+Jeremy Sochan,1631110,Spurs
+Blake Wesley,1631104,Spurs
+Doug McDermott,203926,Spurs
+Malaki Branham,1631103,Spurs
+Zach Collins,1628380,Spurs
+Devin Vassell,1630170,Spurs
+Khem Birch,203920,Spurs
+Dominick Barlow,1631230,Spurs
+Charles Bassey,1629646,Spurs
+Julian Champagnie,1630577,Spurs
+Keita Bates-Diop,1628966,Spurs
+Tre Jones,1630200,Spurs
+Romeo Langford,1629641,Spurs
+Gorgui Dieng,203476,Spurs
+Sandro Mamukelashvili,1630572,Spurs
+Shai Gilgeous-Alexander,1628983,Thunder
+Josh Giddey,1630581,Thunder
+Luguentz Dort,1629652,Thunder
+Jaylin Williams,1631119,Thunder
+Chet Holmgren,1631096,Thunder
+Jalen Williams,1631114,Thunder
+Dario Šarić,203967,Thunder
+Isaiah Joe,1630198,Thunder
+Lindy Waters III,1630322,Thunder
+Ousmane Dieng,1631172,Thunder
+Jared Butler,1630215,Thunder
+Aleksej Pokusevski,1630197,Thunder
+Aaron Wiggins,1630598,Thunder
+Tre Mann,1630544,Thunder
+Olivier Sarr,1630846,Thunder
+Kenrich Williams,1629026,Thunder
+Jeremiah Robinson-Earl,1630526,Thunder
+Will Barton,203115,Raptors
+OG Anunoby,1628384,Raptors
+Scottie Barnes,1630567,Raptors
+Precious Achiuwa,1630173,Raptors
+Ron Harper Jr.,1631199,Raptors
+Joe Wieskamp,1630580,Raptors
+Jakob Poeltl,1627751,Raptors
+Jeff Dowtin Jr.,1630288,Raptors
+Thaddeus Young,201152,Raptors
+Malachi Flynn,1630201,Raptors
+Fred VanVleet,1627832,Raptors
+Chris Boucher,1628449,Raptors
+Otto Porter Jr.,203490,Raptors
+Gary Trent Jr.,1629018,Raptors
+Christian Koloko,1631132,Raptors
+Pascal Siakam,1627783,Raptors
+Dalano Banton,1630625,Raptors
+Talen Horton-Tucker,1629659,Jazz
+Jordan Clarkson,203903,Jazz
+Collin Sexton,1629012,Jazz
+Kris Dunn,1627739,Jazz
+Vernon Carey Jr.,1630176,Jazz
+Damian Jones,1627745,Jazz
+Simone Fontecchio,1631323,Jazz
+Luka Samanic,1629677,Jazz
+Udoka Azubuike,1628962,Jazz
+Rudy Gay,200752,Jazz
+Lauri Markkanen,1628374,Jazz
+Walker Kessler,1631117,Jazz
+Micah Potter,1630695,Jazz
+Ochai Agbaji,1630534,Jazz
+Johnny Juzang,1630548,Jazz
+Kelly Olynyk,203482,Jazz
+Juan Toscano-Anderson,1629308,Jazz
+Jacob Gilyard,1631367,Grizzlies
+Xavier Tillman,1630214,Grizzlies
+Jake LaRavia,1631222,Grizzlies
+Steven Adams,203500,Grizzlies
+Vince Williams Jr.,1631246,Grizzlies
+Kenneth Lofton Jr.,1631254,Grizzlies
+Santi Aldama,1630583,Grizzlies
+Ziaire Williams,1630533,Grizzlies
+Luke Kennard,1628379,Grizzlies
+Ja Morant,1629630,Grizzlies
+Jaren Jackson Jr.,1628991,Grizzlies
+Brandon Clarke,1629634,Grizzlies
+Tyus Jones,1626145,Grizzlies
+Desmond Bane,1630217,Grizzlies
+Dillon Brooks,1628415,Grizzlies
+David Roddy,1631223,Grizzlies
+John Konchar,1629723,Grizzlies
+Johnny Davis,1631098,Wizards
+Bradley Beal,203078,Wizards
+Kristaps Porziņģis,204001,Wizards
+Jordan Goodwin,1630692,Wizards
+Deni Avdija,1630166,Wizards
+Xavier Cooks,1641645,Wizards
+Isaiah Todd,1630225,Wizards
+Anthony Gill,1630264,Wizards
+Kendrick Nunn,1629134,Wizards
+Daniel Gafford,1629655,Wizards
+Monté Morris,1628420,Wizards
+Corey Kispert,1630557,Wizards
+Quenton Jackson,1631245,Wizards
+Kyle Kuzma,1628398,Wizards
+Jay Huff,1630643,Wizards
+Delon Wright,1626153,Wizards
+Taj Gibson,201959,Wizards
+Jalen Duren,1631105,Pistons
+Cade Cunningham,1630595,Pistons
+Alec Burks,202692,Pistons
+Hamidou Diallo,1628977,Pistons
+Killian Hayes,1630165,Pistons
+Jared Rhoden,1631197,Pistons
+Isaiah Livers,1630587,Pistons
+James Wiseman,1630164,Pistons
+R.J. Hampton,1630181,Pistons
+Rodney McGruder,203585,Pistons
+Cory Joseph,202709,Pistons
+Jaden Ivey,1631093,Pistons
+Buddy Boeheim,1631205,Pistons
+Isaiah Stewart,1630191,Pistons
+Marvin Bagley III,1628963,Pistons
+Bojan Bogdanović,202711,Pistons
+Eugene Omoruyi,1630647,Pistons
+LaMelo Ball,1630163,Hornets
+James Bouknight,1630547,Hornets
+Terry Rozier,1626179,Hornets
+Nick Richards,1630208,Hornets
+Mark Williams,1631109,Hornets
+Bryce McGowens,1631121,Hornets
+Dennis Smith Jr.,1628372,Hornets
+Theo Maledon,1630177,Hornets
+Cody Martin,1628998,Hornets
+Kelly Oubre Jr.,1626162,Hornets
+Svi Mykhailiuk,1629004,Hornets
+Xavier Sneed,1630270,Hornets
+Gordon Hayward,202330,Hornets
+JT Thor,1630550,Hornets
+Kobi Simmons,1628424,Hornets
+Kai Jones,1630539,Hornets
+P.J. Washington,1629023,Hornets

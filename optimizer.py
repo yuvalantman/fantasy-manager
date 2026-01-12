@@ -10,54 +10,74 @@ from collections import defaultdict
 import time
 from multiprocessing import Pool
 import logging
+import bisect
 
 class FantasyOptimizer:
-    def __init__(self, my_team, best_filter_path, schedule_path):
+    def __init__(self, my_team, best_filter_path, schedule_week1: dict, schedule_week2: dict | None = None):
         """Initialize and load all required data."""
         if isinstance(my_team, str):  # If given a file path, read the file
             self.my_team = pd.read_csv(my_team)
         else:  # If given a DataFrame, use it directly
-            self.my_team = my_team
+            self.my_team = my_team.copy()
 
-        self.best_filter = best_filter_path
-        self.schedule = pd.read_csv(schedule_path)
-
-        # Ensure column names are correct
-        self.schedule.columns = self.schedule.columns.astype(str)
+        self.best_filter = best_filter_path.copy()
 
         # Standardize position names (to avoid issues with capitalization)
         self.my_team["Pos"] = self.my_team["Pos"].str.lower()
         self.best_filter["Pos"] = self.best_filter["Pos"].str.lower()
-        self.playing_teams_dict22 = {
-            day-1: self.schedule[self.schedule[str(day)] != "-"]["TeamAgg"].tolist()
-            for day in range(2, 9)  # Days from 1 to 7
-        }
         self.playing_teams_dict = {
-            1: ['SAC','DET','PHI','MIA'], 
-            2: ['MEM','CHA','CHI','CLE','WAS','IND','ATL','ORL','NOP','BKN','BOS','NYK','MIN','MIL','LAL','OKC','GSW','PHX','SAS','LAC'],
-            3: ['BOS','ORL','PHI','WAS','LAL','DAL','CHA','TOR','MIA','CHI','POR','UTA','SAS','GSW','OKC','PHX','DEN','SAC','HOU','LAC'],
-            4: ['NYK','DET','CLE','IND','ATL','BKN','NOP','MIL','MIN','MEM'],
-            5: ['ATL','BOS','BKN','CHA','CHI','CLE','DAL','DEN','DET','GSW','HOU','IND','LAC','LAL','MEM','MIA','MIL','MIN','NOP','NYK','OKC','ORL','PHI','PHX','POR','SAC','SAS','TOR','UTA','WAS'],
-            6: ['ATL','BOS','BKN','CHA','CHI','CLE','DAL','DEN','DET','GSW','HOU','IND','LAC','LAL','MEM','MIA','MIL','MIN','NOP','NYK','OKC','ORL','PHI','PHX','POR','SAC','SAS','TOR','UTA','WAS'],
-            7: []
-
+            day: schedule_week1.get(day, [])
+            for day in range(1, 8)
         }
-        #print(self.playing_teams_dict)
+
+        self.playing_teams_second_dict = (
+            {day: schedule_week2.get(day, []) for day in range(1, 8)}
+            if schedule_week2 is not None
+            else {}
+        )
+        
         self.playing_players_dict = {
             day : self.best_filter[self.best_filter["team"].isin(self.playing_teams_dict[day])]["Player"].tolist()
             for day in range(1,8)
         }
-        self.playing_players_lookup = {}
-        for day, teams in self.playing_teams_dict.items():
-            players = self.best_filter[self.best_filter["team"].isin(teams)]["Player"].tolist()
-            for player in players:
-                self.playing_players_lookup[(player, day)] = True
+        # second week
+        self.playing_players_second_dict = {
+            day: self.best_filter[self.best_filter["team"].isin(self.playing_teams_second_dict.get(day, []))]["Player"].tolist()
+            for day in range(1, 8)
+        } if self.playing_teams_second_dict else {}
+
+        self.playing_players_lookup = {
+            (player, day): True
+            for day, players in self.playing_players_dict.items()
+            for player in players
+        }
+
+        self.playing_players_second_lookup = {
+            (player, day): True
+            for day, players in self.playing_players_second_dict.items()
+            for player in players
+        }
 
         self.form_lookup = {
             (row["Player"], row["team"]): row["Form"] for _, row in self.best_filter.iterrows()
         }
         self.best_filter_front = self.best_filter[self.best_filter["Pos"] == "front"]
         self.best_filter_back = self.best_filter[self.best_filter["Pos"] == "back"]
+
+        # 🔧 Build pool matrices on copies that already have 'Salary'
+        bf_for_pool = self.best_filter.copy()
+        if "$" in bf_for_pool.columns and "Salary" not in bf_for_pool.columns:
+            bf_for_pool = bf_for_pool.rename(columns={"$": "Salary"})
+        bf_for_pool["Salary"] = bf_for_pool["Salary"].astype(float)
+
+        self.pool_matrix_week1 = self.build_player_day_matrix(bf_for_pool)
+
+        if schedule_week2 is not None:
+            bf_for_pool2 = bf_for_pool.copy()
+            self.pool_matrix_week2 = self.build_player_day_matrix_second(bf_for_pool2)
+        else:
+            self.pool_matrix_week2 = None
+
     
     def build_player_day_matrix(self, df=None):
         """
@@ -78,7 +98,7 @@ class FantasyOptimizer:
             )
         print("✅ Player-day matrix built with Day1–Day7 columns.")
         return df
-
+    
     def build_day_lineup(self, team_matrix):
         day_lineup = {}
 
@@ -183,7 +203,7 @@ class FantasyOptimizer:
     def evaluate_swap_fast(self, in_players, base_lineup):
         team_lineup = self.clone_lineup(base_lineup)
         # Only add in_players now — out_players are assumed already removed
-        for _, row in in_players.iterrows():
+        for row in in_players:
             day_lineup = self.update_day_lineup_add(team_lineup, row)
 
         total_form = sum(day_lineup[day]["form_total"] for day in range(1, 8))
@@ -215,6 +235,217 @@ class FantasyOptimizer:
         return weekly_sched
 
     
+    # def find_best_weekly_substitutions(self, extra_salary=0, top_n=5):
+    #     print("🚀 Fast weekly substitution starting...")
+    #     print(self.my_team.columns)
+    #     print(self.best_filter.columns)
+    #     extra_salary = float(extra_salary)
+    #     self.my_team = self.my_team.rename(columns={"$": "Salary"})
+    #     self.best_filter = self.best_filter.rename(columns={"$": "Salary"})
+    #     available_players = self.best_filter[~self.best_filter["Player"].isin(self.my_team["Player"])].copy()
+    #     available_players = available_players.sort_values(by="Form", ascending=False)
+
+    #     team_matrix = self.build_player_day_matrix(copy.deepcopy(self.my_team))
+    #     pool_matrix = self.build_player_day_matrix(available_players)
+
+    #     base_lineup = self.build_day_lineup(team_matrix)
+    #     current_form = sum(base_lineup[day]["form_total"] for day in range(1, 8))
+    #     current_salary = self.my_team["Salary"].sum()
+    #     count = 0
+    #     top_swaps = []
+    #     heapq.heapify(top_swaps)
+    #     min_top_form = float("-inf")
+
+    #     valid_in_combos = defaultdict(list)
+
+    #     for player in pool_matrix.itertuples(index=False):
+    #         key = "F" if player.Pos == "front" else "B"
+    #         valid_in_combos[key].append((
+    #             #pd.DataFrame([player._asdict()]),
+    #             player._asdict(),
+    #             player.Salary
+    #         ))
+
+
+    #     for p1, p2 in itertools.combinations(pool_matrix.itertuples(index=False), 2):
+    #         pos_tuple = tuple(sorted([p1.Pos, p2.Pos]))
+    #         key = (
+    #             "FF" if pos_tuple == ("front", "front") else
+    #             "BB" if pos_tuple == ("back", "back") else "FB"
+    #         )
+    #         valid_in_combos[key].append((
+    #             [p1._asdict(), p2._asdict()],
+    #             p1.Salary + p2.Salary
+    #         ))
+    #     salary_list = {}
+    #     for key in valid_in_combos:
+    #         valid_in_combos[key].sort(key=lambda x: x[1])
+    #         salary_list[key] = [salary for (_, salary) in valid_in_combos[key]]
+
+    #     for num_swaps in [1, 2]:
+    #         for out_players in itertools.combinations(team_matrix.itertuples(index=False, name="Row"), num_swaps):
+    #             #out_df = pd.DataFrame(out_players)
+    #             #out_df.columns = team_matrix.columns
+    #             #out_salary = out_df["Salary"].sum()
+    #             out_list = [p._asdict() for p in out_players]
+    #             out_salary = sum(p["Salary"] for p in out_list)
+
+
+    #             if num_swaps == 1:
+    #                 pos = out_list[0]["Pos"]
+    #                 key = "F" if pos == "front" else "B"
+    #                 #in_pool = valid_in_combos[key]
+    #             else:
+    #                 #pos_tuple = tuple(sorted(p["Pos"].str.lower() for p in out_list))
+    #                 pos_tuple = tuple(sorted(p["Pos"].lower() for p in out_list))
+    #                 key = (
+    #                     "FF" if pos_tuple == ("front", "front") else
+    #                     "BB" if pos_tuple == ("back", "back") else "FB"
+    #                 )
+    #                 #in_pool = valid_in_combos[key]
+    #             #valid_swaps = [(in_players, salary) for (in_players, salary) in in_pool if salary <= (out_salary + extra_salary)]
+    #             max_salary = out_salary + extra_salary
+    #             idx = bisect.bisect_right(salary_list[key], max_salary)
+    #             valid_swaps = valid_in_combos[key][:idx]
+    #             if not valid_swaps:
+    #                 continue
+
+    #             #removed_lineup = copy.deepcopy(base_lineup)
+    #             removed_lineup = self.clone_lineup(base_lineup)
+    #             for row in out_list:
+    #                 self.update_day_lineup_remove(removed_lineup, row)
+                
+    #             for in_players, salary in valid_swaps:
+    #                 count+=1
+    #                 in_list = in_players if isinstance(in_players, list) else [in_players]
+    #                 new_form = self.evaluate_swap_fast(in_list, removed_lineup)
+    #                 if new_form > min_top_form:
+    #                     new_salary = current_salary - out_salary + salary
+    #                     if len(top_swaps) < top_n:
+    #                         heapq.heappush(top_swaps, (new_form,new_salary, [p["Player"] for p in out_list], [p["Player"] for p in in_list]))
+    #                     else:
+    #                         heapq.heappushpop(top_swaps, (new_form, new_salary, [p["Player"] for p in out_list], [p["Player"] for p in in_list]))
+    #                     min_top_form = top_swaps[0][0]
+
+    #     top_swaps.sort(reverse=True)
+    #     print(f"total swaps optionable {count}")
+    #     # Now attach the weekly schedule for the final top swaps
+    #     final_results = []
+    #     for score, salary, out_players, in_players in top_swaps:
+    #         #new_team_df = self.my_team[~self.my_team["Player"].isin(out_players)].copy()
+    #         #in_df = self.best_filter[self.best_filter["Player"].isin(in_players)]
+    #         #final_team = pd.concat([new_team_df, in_df], ignore_index=True)
+    #         new_team_dicts = [p for p in self.my_team.to_dict(orient="records") if p["Player"] not in out_players]
+    #         in_dicts = [p for p in self.best_filter.to_dict(orient="records") if p["Player"] in in_players]
+    #         final_team = pd.DataFrame(new_team_dicts + in_dicts)
+    #         start_sched = time.perf_counter()
+    #         weekly_sched = self.print_weekly_form(final_team)
+    #         print(f"🕒 Weekly form took: {time.perf_counter() - start_sched:.2f} sec")
+    #         final_results.append((
+    #             round(score, 2),
+    #             round(current_form, 2),
+    #             round(salary,1),
+    #             out_players,
+    #             in_players,
+    #             final_team.reset_index(drop=True).to_dict(orient="records"),
+    #             weekly_sched
+    #         ))
+    #     print("subs")
+    #     for swap in final_results:
+    #         print("DEBUG: Swap Structure")
+    #         for i, item in enumerate(swap):
+    #             print(f" - swap[{i}] ({type(item)}): {item}")
+    #     print("🏁 Substitution search completed.")
+    #     return final_results
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+
+
+
+
+
+
+    
+    
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    # second week functions
+    def build_player_day_matrix_second(self, df=None):
+        """
+        Adds columns Day1–Day7 to the given DataFrame (default: full pool),
+        where each column represents the player's form if they're playing that day.
+        """
+        if df is None:
+            df = self.best_filter.copy()
+
+        df["Form"] = df["Form"].astype(float)
+        df["Pos"] = df["Pos"].str.lower()
+
+        for day in range(1, 8):
+            playing_teams = self.playing_teams_second_dict.get(day, [])
+            df[f"Day{day}"] = df.apply(
+                lambda row: row["Form"] if row["team"] in playing_teams else 0.0,
+                axis=1
+            )
+        print("✅ Player-day matrix built with Day1–Day7 columns.")
+        return df
+    
+    def print_weekly_form_second(self, team_df=None):
+        if team_df is None:
+            team_df = self.my_team  # Default to current team if not provided
+
+        # Create player-day matrix (adds Day1 to Day7 columns)
+        team_matrix = self.build_player_day_matrix_second(team_df)
+
+        # Build daily best lineups (5 best players per day with max 3 front and 3 back)
+        day_lineups = self.build_day_lineup(team_matrix)
+
+        weekly_sched = {}
+
+        for day in range(1, 8):
+            players = day_lineups[day]["total"]
+            form_sum = day_lineups[day]["form_total"]
+
+            # Format each player as a dict {"Player": name, "Form": value}
+            players_data = [{"Player": name, "Form": round(form, 1)} for form, name, pos in players]
+            players_data.append({"Daily Total": round(form_sum, 1)})
+
+            weekly_sched[day] = players_data
+
+        return weekly_sched
+    
     def find_best_weekly_substitutions(self, extra_salary=0, top_n=5):
         print("🚀 Fast weekly substitution starting...")
         print(self.my_team.columns)
@@ -222,26 +453,34 @@ class FantasyOptimizer:
         extra_salary = float(extra_salary)
         self.my_team = self.my_team.rename(columns={"$": "Salary"})
         self.best_filter = self.best_filter.rename(columns={"$": "Salary"})
-        available_players = self.best_filter[~self.best_filter["Player"].isin(self.my_team["Player"])].copy()
+        available_players = self.pool_matrix_week1[~self.pool_matrix_week1["Player"].isin(self.my_team["Player"])].copy()
         available_players = available_players.sort_values(by="Form", ascending=False)
 
         team_matrix = self.build_player_day_matrix(copy.deepcopy(self.my_team))
-        pool_matrix = self.build_player_day_matrix(available_players)
+        pool_matrix = available_players
+
+        # delete later
+        # team_matrix["Day4"] = 0.0
+        # pool_matrix["Day4"] = 0.0
 
         base_lineup = self.build_day_lineup(team_matrix)
         current_form = sum(base_lineup[day]["form_total"] for day in range(1, 8))
+        #current_form = sum(base_lineup[day]["form_total"] for day in list(range(1, 4)) + list(range(5, 8)))
         current_salary = self.my_team["Salary"].sum()
         count = 0
         top_swaps = []
         heapq.heapify(top_swaps)
-        min_top_form = float("-inf")
+        
+        heapq.heappush(top_swaps, (current_form, current_salary, [], []))
+        min_top_form = current_form
 
         valid_in_combos = defaultdict(list)
 
         for player in pool_matrix.itertuples(index=False):
             key = "F" if player.Pos == "front" else "B"
             valid_in_combos[key].append((
-                pd.DataFrame([player._asdict()]),
+                #pd.DataFrame([player._asdict()]),
+                player._asdict(),
                 player.Salary
             ))
 
@@ -253,45 +492,57 @@ class FantasyOptimizer:
                 "BB" if pos_tuple == ("back", "back") else "FB"
             )
             valid_in_combos[key].append((
-                pd.DataFrame([p1._asdict(), p2._asdict()]),
+                [p1._asdict(), p2._asdict()],
                 p1.Salary + p2.Salary
             ))
-
+        salary_list = {}
         for key in valid_in_combos:
             valid_in_combos[key].sort(key=lambda x: x[1])
+            salary_list[key] = [salary for (_, salary) in valid_in_combos[key]]
 
         for num_swaps in [1, 2]:
             for out_players in itertools.combinations(team_matrix.itertuples(index=False, name="Row"), num_swaps):
-                out_df = pd.DataFrame(out_players)
-                out_df.columns = team_matrix.columns
-                out_salary = out_df["Salary"].sum()
+                #out_df = pd.DataFrame(out_players)
+                #out_df.columns = team_matrix.columns
+                #out_salary = out_df["Salary"].sum()
+                out_list = [p._asdict() for p in out_players]
+                out_salary = sum(p["Salary"] for p in out_list)
+
 
                 if num_swaps == 1:
-                    pos = out_df.iloc[0]["Pos"]
+                    pos = out_list[0]["Pos"]
                     key = "F" if pos == "front" else "B"
-                    in_pool = valid_in_combos[key]
+                    #in_pool = valid_in_combos[key]
                 else:
-                    pos_tuple = tuple(sorted(out_df["Pos"].str.lower()))
+                    #pos_tuple = tuple(sorted(p["Pos"].str.lower() for p in out_list))
+                    pos_tuple = tuple(sorted(p["Pos"].lower() for p in out_list))
                     key = (
                         "FF" if pos_tuple == ("front", "front") else
                         "BB" if pos_tuple == ("back", "back") else "FB"
                     )
-                    in_pool = valid_in_combos[key]
-                valid_swaps = [(in_players, salary) for (in_players, salary) in in_pool if salary <= (out_salary + extra_salary)]
+                    #in_pool = valid_in_combos[key]
+                #valid_swaps = [(in_players, salary) for (in_players, salary) in in_pool if salary <= (out_salary + extra_salary)]
+                max_salary = out_salary + extra_salary
+                idx = bisect.bisect_right(salary_list[key], max_salary)
+                valid_swaps = valid_in_combos[key][:idx]
+                if not valid_swaps:
+                    continue
 
-                removed_lineup = copy.deepcopy(base_lineup)
-                for _, row in out_df.iterrows():
+                #removed_lineup = copy.deepcopy(base_lineup)
+                removed_lineup = self.clone_lineup(base_lineup)
+                for row in out_list:
                     self.update_day_lineup_remove(removed_lineup, row)
                 
                 for in_players, salary in valid_swaps:
                     count+=1
-                    new_form = self.evaluate_swap_fast(in_players, removed_lineup)
+                    in_list = in_players if isinstance(in_players, list) else [in_players]
+                    new_form = self.evaluate_swap_fast(in_list, removed_lineup)
                     if new_form > min_top_form:
                         new_salary = current_salary - out_salary + salary
                         if len(top_swaps) < top_n:
-                            heapq.heappush(top_swaps, (new_form,new_salary, out_df["Player"].tolist(), in_players["Player"].tolist()))
+                            heapq.heappush(top_swaps, (new_form,new_salary, [p["Player"] for p in out_list], [p["Player"] for p in in_list]))
                         else:
-                            heapq.heappushpop(top_swaps, (new_form, new_salary, out_df["Player"].tolist(), in_players["Player"].tolist()))
+                            heapq.heappushpop(top_swaps, (new_form, new_salary, [p["Player"] for p in out_list], [p["Player"] for p in in_list]))
                         min_top_form = top_swaps[0][0]
 
         top_swaps.sort(reverse=True)
@@ -299,9 +550,12 @@ class FantasyOptimizer:
         # Now attach the weekly schedule for the final top swaps
         final_results = []
         for score, salary, out_players, in_players in top_swaps:
-            new_team_df = self.my_team[~self.my_team["Player"].isin(out_players)].copy()
-            in_df = self.best_filter[self.best_filter["Player"].isin(in_players)]
-            final_team = pd.concat([new_team_df, in_df], ignore_index=True)
+            #new_team_df = self.my_team[~self.my_team["Player"].isin(out_players)].copy()
+            #in_df = self.best_filter[self.best_filter["Player"].isin(in_players)]
+            #final_team = pd.concat([new_team_df, in_df], ignore_index=True)
+            new_team_dicts = [p for p in self.my_team.to_dict(orient="records") if p["Player"] not in out_players]
+            in_dicts = [p for p in self.best_filter.to_dict(orient="records") if p["Player"] in in_players]
+            final_team = pd.DataFrame(new_team_dicts + in_dicts)
             start_sched = time.perf_counter()
             weekly_sched = self.print_weekly_form(final_team)
             print(f"🕒 Weekly form took: {time.perf_counter() - start_sched:.2f} sec")
@@ -322,26 +576,248 @@ class FantasyOptimizer:
         print("🏁 Substitution search completed.")
         return final_results
     
+
+    def find_best_weekly_substitutions_second(self, extra_salary=0, top_n=1, current_team_df=None, max_total_salary=None):
+        """
+        Weekly substitution search using the SECOND week schedule (schedule_second).
+        Optionally:
+          - current_team_df: use a custom starting team instead of self.my_team
+          - max_total_salary: global salary cap; will reduce effective extra_salary
+        Returns: list of tuples with same structure as find_best_weekly_substitutions.
+        """
+        if self.schedule_second is None:
+            raise ValueError("Second-week schedule not provided to FantasyOptimizer.")
+
+        print("🚀 Second-week fast weekly substitution starting...")
+
+        extra_salary = float(extra_salary)
+        # allow passing a different starting team
+        if current_team_df is not None:
+            self.my_team = current_team_df.copy()
+
+        self.my_team = self.my_team.rename(columns={"$": "Salary"})
+        self.best_filter = self.best_filter.rename(columns={"$": "Salary"})
+
+        self.my_team["Salary"] = self.my_team["Salary"].astype(float)
+        self.best_filter["Salary"] = self.best_filter["Salary"].astype(float)
+
+        if self.pool_matrix_week2 is None:
+            self.pool_matrix_week2 = self.build_player_day_matrix_second(self.best_filter.copy())
+
+        # remove current team from pool
+        available_players = self.pool_matrix_week2[~self.pool_matrix_week2["Player"].isin(current_team_df["Player"])].copy()
+        available_players = available_players.sort_values(by="Form", ascending=False)
+
+        team_matrix = self.build_player_day_matrix_second(current_team_df.copy())
+        pool_matrix = available_players
+
+        base_lineup = self.build_day_lineup(team_matrix)
+        current_form = sum(base_lineup[day]["form_total"] for day in range(1, 8))
+        current_salary = self.my_team["Salary"].sum()
+
+        # If we have a global cap, adjust effective extra_salary
+        if max_total_salary is not None:
+            extra_salary = max(0.0, float(max_total_salary) - float(current_salary))
+
+        count = 0
+        top_swaps = []
+        heapq.heapify(top_swaps)
+
+        # no subs option
+        heapq.heappush(top_swaps, (current_form, current_salary, [], []))
+        min_top_form = current_form
+
+        valid_in_combos = defaultdict(list)
+
+        for player in pool_matrix.itertuples(index=False):
+            key = "F" if player.Pos == "front" else "B"
+            valid_in_combos[key].append((player._asdict(), player.Salary))
+
+        for p1, p2 in itertools.combinations(pool_matrix.itertuples(index=False), 2):
+            pos_tuple = tuple(sorted([p1.Pos, p2.Pos]))
+            key = (
+                "FF" if pos_tuple == ("front", "front") else
+                "BB" if pos_tuple == ("back", "back") else "FB"
+            )
+            valid_in_combos[key].append(([p1._asdict(), p2._asdict()], p1.Salary + p2.Salary))
+
+        salary_list = {}
+        for key in valid_in_combos:
+            valid_in_combos[key].sort(key=lambda x: x[1])
+            salary_list[key] = [salary for (_, salary) in valid_in_combos[key]]
+
+        for num_swaps in [1, 2]:
+            for out_players in itertools.combinations(team_matrix.itertuples(index=False, name="Row"), num_swaps):
+                out_list = [p._asdict() for p in out_players]
+                out_salary = sum(p["Salary"] for p in out_list)
+
+                if num_swaps == 1:
+                    pos = out_list[0]["Pos"]
+                    key = "F" if pos == "front" else "B"
+                else:
+                    pos_tuple = tuple(sorted(p["Pos"].lower() for p in out_list))
+                    key = (
+                        "FF" if pos_tuple == ("front", "front") else
+                        "BB" if pos_tuple == ("back", "back") else "FB"
+                    )
+
+                max_salary = out_salary + extra_salary
+                idx = bisect.bisect_right(salary_list[key], max_salary)
+                valid_swaps = valid_in_combos[key][:idx]
+                if not valid_swaps:
+                    continue
+
+                removed_lineup = self.clone_lineup(base_lineup)
+                for row in out_list:
+                    self.update_day_lineup_remove(removed_lineup, row)
+
+                for in_players, salary in valid_swaps:
+                    count += 1
+                    in_list = in_players if isinstance(in_players, list) else [in_players]
+                    new_form = self.evaluate_swap_fast(in_list, removed_lineup)
+                    if new_form > min_top_form:
+                        new_salary = current_salary - out_salary + salary
+                        if max_total_salary is not None and new_salary > max_total_salary:
+                            continue
+
+                        if len(top_swaps) < top_n:
+                            heapq.heappush(
+                                top_swaps,
+                                (new_form, new_salary, [p["Player"] for p in out_list], [p["Player"] for p in in_list])
+                            )
+                        else:
+                            heapq.heappushpop(
+                                top_swaps,
+                                (new_form, new_salary, [p["Player"] for p in out_list], [p["Player"] for p in in_list])
+                            )
+                        min_top_form = top_swaps[0][0]
+
+        top_swaps.sort(reverse=True)
+        print(f"total second-week swaps optionable {count}")
+
+        final_results = []
+        for score, salary, out_players, in_players in top_swaps:
+            new_team_dicts = [p for p in self.my_team.to_dict(orient="records") if p["Player"] not in out_players]
+            in_dicts = [p for p in self.best_filter.to_dict(orient="records") if p["Player"] in in_players]
+            final_team = pd.DataFrame(new_team_dicts + in_dicts)
+            start_sched = time.perf_counter()
+            weekly_sched = self.print_weekly_form_second(final_team)
+            print(f"🕒 Second-week weekly form took: {time.perf_counter() - start_sched:.2f} sec")
+            final_results.append((
+                round(score, 2),
+                round(current_form, 2),
+                round(salary, 1),
+                out_players,
+                in_players,
+                final_team.reset_index(drop=True).to_dict(orient="records"),
+                weekly_sched
+            ))
+
+        print("🏁 Second-week substitution search completed.")
+        return final_results
+
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+
+    def find_best_Biweekly_substitutions(self, extra_salary=0, top_n=5):
+        """
+        Find best bi-weekly plan:
+            - 0–2 subs before Week 1 (using first schedule)
+            - 0–2 subs before Week 2 (using second schedule)
+            - Week 2 starts from the Week 1 result team
+            - Total score = week1_new_form + week2_new_form
+            - Global salary cap: final salary <= start_salary + extra_salary
+        """
+        if self.schedule_second is None:
+            raise ValueError("Second-week schedule not provided to FantasyOptimizer.")
+
+        print("🚀 Bi-weekly substitution search starting...")
+
+        counter = itertools.count()
+        extra_salary = float(extra_salary)
+        self.my_team = self.my_team.rename(columns={"$": "Salary"})
+        self.best_filter = self.best_filter.rename(columns={"$": "Salary"})
+
+        self.my_team["Salary"] = self.my_team["Salary"].astype(float)
+        self.best_filter["Salary"] = self.best_filter["Salary"].astype(float)
+
+        start_salary = self.my_team["Salary"].sum()
+        max_total_salary = start_salary + extra_salary
+
+        # --- 1. Week 1 candidates (use weekly function with a slightly larger N) ---
+        week1_candidates_n = max(top_n * 4, top_n + 10)
+        week1_swaps = self.find_best_weekly_substitutions(extra_salary=extra_salary, top_n=week1_candidates_n)
+
+        if not week1_swaps:
+            print("⚠️ No week-1 swaps found, falling back to no-sub plan only.")
+            # build baseline
+            base_sched = self.print_weekly_form(self.my_team)
+            base_form = sum(d[-1]["Daily Total"] for d in base_sched.values())
+            week1_swaps = [(base_form, base_form, start_salary, [], [], self.my_team.to_dict(orient="records"), base_sched)]
+
+        biweekly_heap = []
+        heapq.heapify(biweekly_heap)
+
+        # current_form (week-1 baseline) is the same for all week1 swaps
+        week1_current_form = week1_swaps[0][1]
+        min_top_form = float("-inf")
+        for idx, swap1 in enumerate(week1_swaps):
+            week1_new_form, _, week1_salary, out1, in1, team1_records, week1_sched = swap1
+            team1_df = pd.DataFrame(team1_records)
+
+            # --- 2. Week 2 optimization from team1_df ---
+            remaining_extra_for_week2 = max(0.0, max_total_salary - week1_salary)
+
+            optimizer_week2 = FantasyOptimizer(team1_df, self.best_filter, self.schedule, self.schedule_second)
+            week2_swaps = optimizer_week2.find_best_weekly_substitutions_second(
+                extra_salary=remaining_extra_for_week2,
+                top_n=5,
+                current_team_df=team1_df,
+                max_total_salary=max_total_salary
+            )
+
+            if week2_swaps:
+                for n in range(0,4):
+                    week2_best = week2_swaps[n]
+                    week2_new_form, week2_current_form, week2_salary, out2, in2, team2_records, week2_sched = week2_best
+                    total_biweekly_form = week1_new_form + week2_new_form
+                    if total_biweekly_form > min_top_form:
+                        plan = {
+                            "total_biweekly_form": round(total_biweekly_form, 2),
+                            "week1": {
+                                "new_form": round(week1_new_form, 2),
+                                "current_form": round(week1_current_form, 2),
+                                "salary": round(week1_salary, 1),
+                                "out": out1,
+                                "in": in1,
+                                "team": team1_records,
+                                "weekly_sched": week1_sched,
+                            },
+                            "week2": {
+                                "new_form": round(week2_new_form, 2),
+                                "current_form": round(week2_current_form, 2),
+                                "salary": round(week2_salary, 1),
+                                "out": out2,
+                                "in": in2,
+                                "team": team2_records,
+                                "weekly_sched": week2_sched,
+                            },
+                        }
+                        if len(biweekly_heap) < top_n:
+                            heapq.heappush(biweekly_heap, (total_biweekly_form, next(counter), plan))
+                        else:
+                            heapq.heappushpop(biweekly_heap, (total_biweekly_form, next(counter), plan))
+                            min_top_form = biweekly_heap[0][0]
+            else:
+                # no subs week2 – baseline for week2
+                continue
+
+        # sort best plans descending
+        biweekly_heap.sort(key=lambda x: x[0], reverse=True)
+        best_plans = [plan for _, _, plan in biweekly_heap]
+
+        print("🏁 Bi-weekly substitution search completed.")
+        return best_plans
+
     
     
     

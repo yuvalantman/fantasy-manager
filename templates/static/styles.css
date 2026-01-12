@@ -80,6 +80,7 @@ nav {
     border-top: 1px solid #004b93;
     border-bottom: 1px solid #004b93;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    margin-top: 30px;
     /*gap: 15px;
     margin: 10 px 0; */
 }
@@ -180,7 +181,16 @@ button {
     border-radius: 8px;
     cursor: pointer;
     margin-top: 10px;
+    margin-left: 2px;
     transition: all 0.3s, box-shadow 0.3s;
+}
+#extra_salary , #salary_cap {
+    margin-right: 15px;
+    padding: 5px 8px;
+    font-size: 16px;
+    width: 100 px;
+    height: 20px;
+    border: 1px solid #ccc;
 }
 
 button:hover {
@@ -397,10 +407,47 @@ tr:last-child {
     font-size: 15px;
 }
 
+/* Make labels, select, and input bigger and add spacing */
+#substitutions_section label,
+#substitutions_section select,
+#substitutions_section input[type="number"] {
+    font-size: 18px;
+    padding: 8px 8px;
+    margin-bottom: 10px;
+    border-radius: 6px;
+}
+
+#substitutions_section select,
+#substitutions_section input[type="number"] {
+    border: 1px solid #ccc;
+    background: #f8faff;
+    min-width: 60px;
+}
+
+#top_n_input {
+    display: inline-block;
+    margin-left: 20px;
+    margin-bottom: 10px;
+}
+
+#top_n_input label {
+    font-size: 18px;
+}
+
+#top_n {
+    font-size: 18px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    width: 60px;
+    margin-right: 50px;;
+}
+
 /* Navigation Buttons */
+#save_team,
 #prev_substitution,
 #next_substitution {
-    background-color: #0033a0;
+    background: #0033a0;
     color: white;
     border: none;
     padding: 10px;
@@ -410,9 +457,10 @@ tr:last-child {
     transition: all 0.3s ease-in-out;
 }
 
+#save_team:hover,
 #prev_substitution:hover,
 #next_substitution:hover {
-    background-color: #e50914;
+    
     transform: scale(1.05);
 }
 

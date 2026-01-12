@@ -8,22 +8,23 @@
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <script>
+        window.onerror = (msg) => console.error("JS ERROR:", msg);
         document.addEventListener("DOMContentLoaded", function() { 
             generatePlayerInputs();
             setupMenuNavigation();
             // auto-fill player inputs for debugging
             if(location.hostname === "localhost" || location.hostname === "127.0.0.1"){
                 const debugTeam = [
-                    { name: "Giannis Antetokounmpo", salary: 17.9 },
-                    { name: "Shai Gilgeous-Alexander ", salary: 17.5 },
-                    { name: "Jalen Duren", salary: 12.3 },
-                    { name: "Ivica Zubac", salary: 11.8 },
-                    { name: "Jaden McDaniels", salary: 8.2 },
-                    { name: "Naji Marshall", salary: 6.3 },
-                    { name: "Dyson Daniels", salary: 8.5 },
-                    { name: "Quentin Grimes", salary: 5.5 },
-                    { name: "Isaiah Collier", salary: 5.2 },
-                    { name: "Keon Johnson", salary: 5 },
+                    { name: "Jalen Johnson", salary: 14 },
+                    { name: "Cade Cunningham", salary: 17.2 },
+                    { name: "Deni Avdija", salary: 12.4 },
+                    { name: "Derik Queen", salary: 6.6 },
+                    { name: "Cooper Flagg", salary: 12.4 },
+                    { name: "Maxime Raynaud", salary: 4.9 },
+                    { name: "Kevin Porter Jr.", salary: 8.6 },
+                    { name: "Cam Spencer", salary: 4.7 },
+                    { name: "Kon Knueppel", salary: 6.8 },
+                    { name: "Josh Giddey", salary: 13.6 },
                 ];
 
                 const playerInputs = document.querySelectorAll(".player-input");
@@ -37,7 +38,7 @@
                 });
 
                 // Optional: auto-fill extra salary too
-                document.getElementById("extra_salary").value = 2.3;
+                document.getElementById("extra_salary").value = 0.5;
             }
         });
         
@@ -134,9 +135,12 @@
 
             let data = await response.json();
             alert(data.message);
-            document.getElementById("next_step").style.display = "block";
+            //document.getElementById("next_step").style.display = "block";
+            document.getElementById("week_selector").style.display = "block";
+
         }
 
+        
         function setupOptionListeners() {
             document.querySelectorAll('input[name="option"]').forEach(option => {
                 option.addEventListener("change", function () {
@@ -191,6 +195,38 @@
             `;
         }
 
+        async function fetchBiWeeklyBestTeams() {
+            const spinner = document.getElementById("loading_spinner_biweekly");
+            spinner.style.display = "block";
+            const resultsDiv = document.getElementById("biweekly_results");
+            resultsDiv.innerHTML = "";
+
+            let response = await fetch("/compute_result", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ option: "best_biweekly_team" })
+            });
+
+            let data = await response.json();
+            spinner.style.display = "none";
+
+            if (data.error) {
+                resultsDiv.innerHTML = `<p style="color: red;">${data.error}</p>`;
+                return;
+            }
+            
+            data.top_teams.forEach((result, index) => {
+                resultsDiv.innerHTML += `
+                    <div class="team-result-box">
+                        <h4>🏆 Option ${index + 1} (Est. Score: ${result.score})</h4>
+                        ${result.team.map(p => `<p>${p.Player} - ${p.team} ($${p.$})</p>`).join('')}
+                        <p><strong>Total Price:</strong> $${result.total_price}</p>
+                    </div>
+                `;
+            });
+        }
+
+
         async function fetchBestSubstitutions() {
             document.getElementById("prev_substitution").style.display = "none";
             document.getElementById("next_substitution").style.display = "none";
@@ -215,13 +251,16 @@
                 return;
             }
 
+
             totalSubstitutions = data.top_substitutions;
             currentSubIndex = 0;
-            if (subType == 'weekly'){
+            currentSubType = subType;
+            if (subType === 'weekly') {
                 displayWeeklySubstitutions(currentSubIndex, totalSubstitutions);
-            }
-            else{
-                displayTotalSubstitutions(currentSubIndex, totalSubstitutions)
+            } else if (subType === 'total') {
+                displayTotalSubstitutions(totalSubstitutions);
+            } else if (subType === 'biweekly') {
+                displayBiweeklySubstitutions(currentSubIndex, totalSubstitutions);
             }
             
         }
@@ -297,6 +336,7 @@
 
         let totalSubstitutions = [];
         let currentSubIndex = 0;
+        let currentSubType = "weekly";
 
         function displaySubstitution(index, substitutions, contentDivId) {
             if (substitutions.length === 0) return;
@@ -315,7 +355,7 @@
                     <h4>✅ New Team</h4>
                     ${swap.new_team.map(player => `<p>${player.Player} - ${player.team} ($${player.Salary}) (Form - ${player.Form})</p>`).join("")}
                 `;
-                contentDiv.innerHTML += `<button onclick="showWeeklySchedule(${index}, ${JSON.stringify(swap.weekly_sched)})">View Weekly Schedule</button>
+                contentDiv.innerHTML += `<button onclick="showWeeklySubstitutions(${index}, ${JSON.stringify(swap.weekly_sched)})">View Weekly Schedule</button>
                 <div id="weekly_schedule_${index}" class="weekly-schedule" style="display: none;"></div>`;
             }
             else{
@@ -337,11 +377,14 @@
 
         function changeSubstitution(direction, substitutions, contentDivId) {
             currentSubIndex += direction;
-            if(contentDivId === "weekly_subs_result"){
+            if (currentSubIndex >= substitutions.length) currentSubIndex = substitutions.length - 1;
+
+            if (currentSubType === "weekly") {
                 displayWeeklySubstitutions(currentSubIndex, substitutions);
-            }
-            else{
-                displayTotalSubstitutions(currentSubIndex,substitutions)
+            } else if (currentSubType === "total") {
+                displayTotalSubstitutions(substitutions);
+            } else if (currentSubType === "biweekly") {
+                displayBiweeklySubstitutions(currentSubIndex, substitutions);
             }
             
         }
@@ -363,7 +406,7 @@
             const swap = substitutions[index];
 
             container.innerHTML = `
-                <h5>💡 Substitution Plan ${index + 1} of ${substitutions.length}</h5>
+                <h3>💡 Substitution Plan ${index + 1} of ${substitutions.length}</h3>
                 <p><strong>Current Form:</strong> ${swap.current_form}</p>
                 <p><strong>New Weekly Form:</strong> ${swap.new_form}</p>
                 <p><strong>New Salary:</strong> $${swap.new_salary}</p>
@@ -376,6 +419,50 @@
             `;
             updateNavButtons();
 
+        }
+
+        function displayBiweeklySubstitutions(index = 0, substitutions) {
+            const container = document.getElementById("weekly_subs_result");
+
+            if (!substitutions || substitutions.length === 0) {
+                container.innerHTML = "<p>⚠️ No valid bi-weekly substitutions found.</p>";
+                return;
+            }
+
+            const plan = substitutions[index];
+            const w1 = plan.week1;
+            const w2 = plan.week2;
+
+            container.innerHTML = `
+                <h3>💡 Bi-Weekly Plan ${index + 1} of ${substitutions.length}</h3>
+                <p><strong>Total Bi-Weekly Form:</strong> ${plan.total_biweekly_form}</p>
+
+                <h4>Week 1</h4>
+                <p><strong>Current Week 1 Form:</strong> ${w1.current_form}</p>
+                <p><strong>New Week 1 Form:</strong> ${w1.new_form}</p>
+                <p><strong>Week 1 Salary:</strong> $${w1.salary}</p>
+                <p><strong>Week 1 Players Out:</strong> ${w1.substitutions_out.join(", ") || "None"}</p>
+                <p><strong>Week 1 Players In:</strong> ${w1.substitutions_in.join(", ") || "None"}</p>
+                <h5>Week 1 Team</h5>
+                ${w1.new_team.map(player => `<p>${player.Player} - ${player.team} ($${player.Salary}) (Form - ${player.Form})</p>`).join("")}
+                <button onclick='showWeeklySubstitutions(${index * 2}, ${w1.weekly_sched})'>View Week 1 Schedule</button>
+                <div id="weekly_schedule_${index * 2}" class="weekly-schedule" style="display: none;"></div>
+
+                <hr>
+
+                <h4>Week 2</h4>
+                <p><strong>Current Week 2 Form (before Week 2 subs):</strong> ${w2.current_form}</p>
+                <p><strong>New Week 2 Form:</strong> ${w2.new_form}</p>
+                <p><strong>Week 2 Salary:</strong> $${w2.salary}</p>
+                <p><strong>Week 2 Players Out:</strong> ${w2.substitutions_out.join(", ") || "None"}</p>
+                <p><strong>Week 2 Players In:</strong> ${w2.substitutions_in.join(", ") || "None"}</p>
+                <h5>Week 2 Team</h5>
+                ${w2.new_team.map(player => `<p>${player.Player} - ${player.team} ($${player.Salary}) (Form - ${player.Form})</p>`).join("")}
+                <button onclick='showWeeklySubstitutions(${index * 2 + 1}, ${w2.weekly_sched})'>View Week 2 Schedule</button>
+                <div id="weekly_schedule_${index * 2 + 1}" class="weekly-schedule" style="display: none;"></div>
+            `;
+
+            updateNavButtons();
         }
 
 
@@ -463,6 +550,27 @@
             scheduleDiv.style.display = scheduleDiv.style.display === "none" ? "block" : "none";
         }
 
+        async function setWeek() {
+            const currentWeek = document.getElementById("current_week").value;
+            const nextWeek = document.getElementById("next_week").value;
+
+            if (!currentWeek || !nextWeek) {
+                alert("⚠️ Please select both weeks");
+                return;
+            }
+
+            const res = await fetch("/set_week", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    current_week: currentWeek,
+                    next_week: nextWeek
+                })
+            });
+
+            const data = await res.json();
+            alert(data.message);
+        }
 
 
         async function computeResult(option, top_n = 5) {
@@ -531,11 +639,23 @@
             </div>
         </div>
         <input type="number" id="extra_salary" placeholder="Extra Salary">
-        <button onclick="setUserTeam()">Save Team</button>
+        <button id="save_team" onclick="setUserTeam()">Save Team</button>
+        <div id="week_selector" style="margin-top:20px; display:none;">
+            <h3>Select Gameweeks</h3>
+
+            <label>Current Week:</label>
+            <input type="number" id="current_week" min="1" max="40">
+
+            <label style="margin-left:10px;">Next Week:</label>
+            <input type="number" id="next_week" min="1" max="40">
+
+            <button onclick="setWeek()">Confirm Week Selection</button>
+        </div>
 
         <!-- Menu for different sections -->
         <nav>
             <a href="#" class="menu-item" data-section="best_team_section">Best Team</a>
+            <a href="#" class="menu-item" data-section="biweekly_section">Bi-Weekly Best Team</a>
             <a href="#" class="menu-item" data-section="substitutions_section">Best Substitutions</a>
             <a href="#" class="menu-item" data-section="weekly_schedule_section">Weekly Schedule</a>
         </nav>
@@ -550,6 +670,14 @@
             <div id="loading_spinner_best_team" style="display:none"></div>
             <div id="best_team_results"></div>
         </div>
+        <!-- Bi-Weekly Best Team Section -->
+        <div id="biweekly_section" class="section" style="display: none;">
+            <h2>Find Best Bi-Weekly Team</h2>
+            <p>Finds team options that are optimized for a 2-week schedule.</p>
+            <button onclick="fetchBiWeeklyBestTeams()">Get Bi-Weekly Teams</button>
+            <div id="loading_spinner_biweekly" style="display:none"></div>
+            <div id="biweekly_results" class="results-grid"></div>
+        </div>
         
         <!-- Best Substitutions Section -->
         <div id="substitutions_section" class="section" style="display: none;">
@@ -559,6 +687,7 @@
             <select id="sub_type" onchange="toggleTopNVisibility()">
                 <option value="weekly">Weekly</option>
                 <option value="total">Total</option>
+                <option value="biweekly">Bi-Weekly</option>
             </select>
             <div id="top_n_input">
                 <label for="top_n">Number of Substitutions:</label>
