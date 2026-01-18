@@ -16,15 +16,15 @@
             if(location.hostname === "localhost" || location.hostname === "127.0.0.1"){
                 const debugTeam = [
                     { name: "Jalen Johnson", salary: 14 },
-                    { name: "Cade Cunningham", salary: 17.2 },
+                    { name: "Amen Thompson", salary: 13.5 },
                     { name: "Deni Avdija", salary: 12.4 },
-                    { name: "Derik Queen", salary: 6.6 },
-                    { name: "Cooper Flagg", salary: 12.4 },
+                    { name: "Derik Queen", salary: 6.7 },
+                    { name: "Cooper Flagg", salary: 12.5 },
                     { name: "Maxime Raynaud", salary: 4.9 },
                     { name: "Kevin Porter Jr.", salary: 8.6 },
-                    { name: "Cam Spencer", salary: 4.7 },
+                    { name: "Andrew Nembhard", salary: 8.7 },
                     { name: "Kon Knueppel", salary: 6.8 },
-                    { name: "Josh Giddey", salary: 13.6 },
+                    { name: "Keyonte George", salary: 10.9 },
                 ];
 
                 const playerInputs = document.querySelectorAll(".player-input");
@@ -38,7 +38,7 @@
                 });
 
                 // Optional: auto-fill extra salary too
-                document.getElementById("extra_salary").value = 0.5;
+                document.getElementById("extra_salary").value = 2.6;
             }
         });
         
@@ -227,6 +227,173 @@
         }
 
 
+        // ===== NEW: Untradable Players Functions =====
+        let selectedUntradablePlayers = [];
+        let userTeamPlayers = [];
+
+        async function showUntradablePlayerSelector() {
+            // Get user team players first
+            let userTeamData = [];
+            const playerInputs = document.querySelectorAll(".player-input");
+            playerInputs.forEach(input => {
+                if (input.value.trim()) {
+                    userTeamData.push(input.value.trim());
+                }
+            });
+            userTeamPlayers = userTeamData;
+
+            // Populate the modal with better-styled checkboxes
+            const listDiv = document.getElementById("untradable_players_list");
+            listDiv.innerHTML = userTeamPlayers.map(player => {
+                const isSelected = selectedUntradablePlayers.includes(player);
+                return `
+                    <div style="display: flex; align-items: center; padding: 8px; margin: 5px 0; border-radius: 5px; background-color: ${isSelected ? '#e0f0ff' : '#f9f9f9'}; cursor: pointer; transition: all 0.2s;" 
+                         onclick="toggleUntradablePlayer('${player}')" 
+                         id="untradable_${player}">
+                        <input type="checkbox" value="${player}" class="untradable-checkbox" style="cursor: pointer;" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation()"> 
+                        <span style="margin-left: 10px; flex: 1;">${player}</span>
+                        <span style="font-size: 0.9em; color: #666;">${isSelected ? '✓' : ''}</span>
+                    </div>
+                `;
+            }).join("");
+
+            document.getElementById("untradable_selection_modal").style.display = "block";
+        }
+
+        function toggleUntradablePlayer(playerName) {
+            const checkbox = document.querySelector(`.untradable-checkbox[value="${playerName}"]`);
+            checkbox.checked = !checkbox.checked;
+            
+            // Update visual state
+            const container = document.getElementById(`untradable_${playerName}`);
+            if (checkbox.checked) {
+                container.style.backgroundColor = '#e0f0ff';
+                container.querySelector('span:last-child').textContent = '✓';
+            } else {
+                container.style.backgroundColor = '#f9f9f9';
+                container.querySelector('span:last-child').textContent = '';
+            }
+        }
+
+        function confirmUntradablePlayers() {
+            selectedUntradablePlayers = Array.from(
+                document.querySelectorAll(".untradable-checkbox:checked")
+            ).map(checkbox => checkbox.value);
+
+            // Update display container
+            const container = document.getElementById("untradable_players_container");
+            if (selectedUntradablePlayers.length === 0) {
+                container.innerHTML = "<p style='color: #999; font-size: 0.9em;'>None selected</p>";
+            } else {
+                container.innerHTML = selectedUntradablePlayers.map(player => `
+                    <span style="background: #e0f0ff; padding: 5px 10px; border-radius: 3px; display: inline-block; margin: 3px;">${player}</span>
+                `).join("");
+            }
+
+            closeUntradableModal();
+        }
+
+        function closeUntradableModal() {
+            document.getElementById("untradable_selection_modal").style.display = "none";
+        }
+
+        // ===== NEW: Must Trade Players Functions =====
+        let selectedMustTradePlayers = [];
+
+        async function showMustTradePlayerSelector() {
+            // Get user team players first
+            let userTeamData = [];
+            const playerInputs = document.querySelectorAll(".player-input");
+            playerInputs.forEach(input => {
+                if (input.value.trim()) {
+                    userTeamData.push(input.value.trim());
+                }
+            });
+            userTeamPlayers = userTeamData;
+
+            // Populate the modal with better-styled clickable items
+            const listDiv = document.getElementById("must_trade_players_list");
+            listDiv.innerHTML = userTeamPlayers.map(player => {
+                const isSelected = selectedMustTradePlayers.includes(player);
+                return `
+                    <div style="display: flex; align-items: center; padding: 8px; margin: 5px 0; border-radius: 5px; background-color: ${isSelected ? '#ffe0e0' : '#f9f9f9'}; cursor: pointer; transition: all 0.2s;" 
+                         onclick="toggleMustTradePlayer('${player}')" 
+                         id="must_trade_${player}">
+                        <input type="checkbox" value="${player}" class="must-trade-checkbox" style="cursor: pointer;" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation()"> 
+                        <span style="margin-left: 10px; flex: 1;">${player}</span>
+                        <span style="font-size: 0.9em; color: #666;">${isSelected ? '✓' : ''}</span>
+                    </div>
+                `;
+            }).join("");
+
+            document.getElementById("must_trade_selection_modal").style.display = "block";
+            updateMustTradeCount();
+        }
+
+        function toggleMustTradePlayer(playerName) {
+            const checkbox = document.querySelector(`.must-trade-checkbox[value="${playerName}"]`);
+            const checked = document.querySelectorAll(".must-trade-checkbox:checked").length;
+            
+            // Allow unchecking (toggle off is always allowed)
+            if (checkbox.checked) {
+                checkbox.checked = false;
+                const container = document.getElementById(`must_trade_${playerName}`);
+                container.style.backgroundColor = '#f9f9f9';
+                container.querySelector('span:last-child').textContent = '';
+            } else {
+                // Allow checking up to 2 players
+                if (checked < 2) {
+                    checkbox.checked = true;
+                    const container = document.getElementById(`must_trade_${playerName}`);
+                    container.style.backgroundColor = '#ffe0e0';
+                    container.querySelector('span:last-child').textContent = '✓';
+                }
+            }
+            updateMustTradeCount();
+        }
+
+        function updateMustTradeCount() {
+            const checked = document.querySelectorAll(".must-trade-checkbox:checked").length;
+            document.getElementById("must_trade_count").textContent = `Selected: ${checked}/2`;
+            
+            // Enable/disable checkboxes based on count
+            document.querySelectorAll(".must-trade-checkbox").forEach(checkbox => {
+                if (checked >= 2 && !checkbox.checked) {
+                    checkbox.disabled = true;
+                } else {
+                    checkbox.disabled = false;
+                }
+            });
+        }
+
+        function confirmMustTradePlayers() {
+            const checked = document.querySelectorAll(".must-trade-checkbox:checked");
+            // Allow 0, 1, or 2 players (0 means no mandatory trades)
+            if (checked.length > 2) {
+                alert("⚠️ Please select up to 2 players.");
+                return;
+            }
+
+            selectedMustTradePlayers = Array.from(checked).map(checkbox => checkbox.value);
+
+            // Update display container
+            const container = document.getElementById("must_trade_players_container");
+            if (selectedMustTradePlayers.length === 0) {
+                container.innerHTML = "<p style='color: #999; font-size: 0.9em;'>None selected</p>";
+            } else {
+                container.innerHTML = selectedMustTradePlayers.map(player => `
+                    <span style="background: #ffe0e0; padding: 5px 10px; border-radius: 3px; display: inline-block; margin: 3px;">${player}</span>
+                `).join("");
+            }
+
+            closeMustTradeModal();
+        }
+
+        function closeMustTradeModal() {
+            document.getElementById("must_trade_selection_modal").style.display = "none";
+        }
+
+        // ===== Fetch Best Substitutions with new parameters =====
         async function fetchBestSubstitutions() {
             document.getElementById("prev_substitution").style.display = "none";
             document.getElementById("next_substitution").style.display = "none";
@@ -236,11 +403,19 @@
 
             const subType = document.getElementById("sub_type").value;
             const topN = parseInt(document.getElementById("top_n").value) || 5;
+            const subDay = document.getElementById("sub_day").value || null;
 
             const response = await fetch("/compute_result", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ option: "best_substitutions", sub_type: subType, top_n: topN })
+                body: JSON.stringify({
+                    option: "best_substitutions",
+                    sub_type: subType,
+                    top_n: topN,
+                    untradable_players: selectedUntradablePlayers,
+                    must_trade_players: selectedMustTradePlayers,
+                    sub_day: subDay
+                })
             });
 
             const data = await response.json();
@@ -503,34 +678,44 @@
                                     </thead>
                                     <tbody>`;
 
-                // Find the max number of players (excluding last element which is the total)
-                let maxRows = Math.max(...Object.values(scheduleData).map(dayList => dayList.length - 1));
+                // Find the max number of players (excluding last element which is the total and SUB marker)
+                let maxRows = Math.max(...Object.values(scheduleData).map(dayList => {
+                    return dayList.length - 1 - (dayList.some(item => item.SubstitutionDay) ? 1 : 0);
+                }));
 
                 // Loop through players
                 for (let row = 0; row < maxRows; row++) {
                     tableHTML += "<tr>";
                     for (let day = 1; day <= 7; day++) {
                         let dayData = scheduleData[day] || [];
-                        let playersOnly = dayData.slice(0, -1); // Remove last item (daily total)
+                        
+                        // Check if this is a substitution day
+                        let isSub = dayData.some(item => item.SubstitutionDay === "SUB");
+                        let cellBackground = isSub ? "background-color: #ffffcc; font-weight: bold;" : "";
+                        
+                        // Filter out special items (SubstitutionDay, Daily Total)
+                        let playersOnly = dayData.filter(item => 
+                            item.Player !== undefined && item.Form !== undefined
+                        );
+                        
                         let cell = "";
-
                         if (row < playersOnly.length) {
                             let entry = playersOnly[row];
-                            if (entry && entry.Player !== undefined && entry.Form !== undefined) {
-                                cell = `${entry.Player} (${entry.Form})`;
-                            }
+                            cell = `${entry.Player} (${entry.Form})`;
                         }
 
-                        tableHTML += `<td>${cell}</td>`;
+                        tableHTML += `<td style="${cellBackground}">${cell}</td>`;
                     }
                     tableHTML += "</tr>";
                 }
 
                 // Total Form Row
-                tableHTML += "<tr>";
+                tableHTML += "<tr style='background-color: #f0f0f0;'>";
                 for (let day = 1; day <= 7; day++) {
                     let dayData = scheduleData[day];
                     let totalCell = "";
+                    let isSub = dayData && dayData.some(item => item.SubstitutionDay === "SUB");
+                    let cellBackground = isSub ? "background-color: #ffffcc; font-weight: bold;" : "";
 
                     if (dayData && dayData.length > 0) {
                         let lastEntry = dayData[dayData.length - 1];
@@ -539,7 +724,7 @@
                         }
                     }
 
-                    tableHTML += `<td>${totalCell}</td>`;
+                    tableHTML += `<td style="${cellBackground}">${totalCell}</td>`;
                 }
                 tableHTML += "</tr>";
 
@@ -683,6 +868,55 @@
         <div id="substitutions_section" class="section" style="display: none;">
             <h2>Find Best Substitutions</h2>
             <h3> might take up to 30 seconds</h3>
+            
+            <!-- Option 1: Untradable Players -->
+            <div style="margin: 15px 0; padding: 10px; border: 1px solid #ccc; border-radius: 5px;">
+                <h4>🔒 Untradable Players (Optional)</h4>
+                <p style="font-size: 0.9em; color: #666;">Select players you want to keep. The algorithm won't replace them.</p>
+                <div id="untradable_players_container" style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
+                </div>
+                <button type="button" onclick="showUntradablePlayerSelector()">Select Untradable Players</button>
+                <div id="untradable_selection_modal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border: 2px solid #333; padding: 20px; z-index: 1000; max-height: 500px; overflow-y: auto; min-width: 400px;">
+                    <h5>Choose Players to Keep</h5>
+                    <div id="untradable_players_list" style="margin: 10px 0;"></div>
+                    <button onclick="confirmUntradablePlayers()">Confirm</button>
+                    <button onclick="closeUntradableModal()">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Option 2: Must Trade Players -->
+            <div style="margin: 15px 0; padding: 10px; border: 1px solid #ccc; border-radius: 5px;">
+                <h4>⚠️ Must Trade Players (Optional)</h4>
+                <p style="font-size: 0.9em; color: #666;">Select 1-2 players that MUST be traded out. Algorithm will only consider swaps involving them.</p>
+                <div id="must_trade_players_container" style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
+                </div>
+                <button type="button" onclick="showMustTradePlayerSelector()">Select Must Trade Players</button>
+                <div id="must_trade_selection_modal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border: 2px solid #333; padding: 20px; z-index: 1000; max-height: 500px; overflow-y: auto; min-width: 400px;">
+                    <h5>Choose Players to Trade (1-2)</h5>
+                    <div id="must_trade_players_list" style="margin: 10px 0;"></div>
+                    <p id="must_trade_count" style="font-size: 0.9em; color: #999;">Selected: 0/2</p>
+                    <button onclick="confirmMustTradePlayers()">Confirm</button>
+                    <button onclick="closeMustTradeModal()">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Option 3: Substitution Day Picker -->
+            <div style="margin: 15px 0; padding: 10px; border: 1px solid #ccc; border-radius: 5px;">
+                <h4>📅 Substitution Day (Optional)</h4>
+                <p style="font-size: 0.9em; color: #666;">Pick the day when substitutions happen. Form before that day uses old team, after uses new team.</p>
+                <label for="sub_day">Choose Day:</label>
+                <select id="sub_day" style="margin-left: 10px;">
+                    <option value="">No preference (Day 1)</option>
+                    <option value="1">Monday (Day 1)</option>
+                    <option value="2">Tuesday (Day 2)</option>
+                    <option value="3">Wednesday (Day 3)</option>
+                    <option value="4">Thursday (Day 4)</option>
+                    <option value="5">Friday (Day 5)</option>
+                    <option value="6">Saturday (Day 6)</option>
+                    <option value="7">Sunday (Day 7)</option>
+                </select>
+            </div>
+
             <label for="sub_type">Select Type:</label>
             <select id="sub_type" onchange="toggleTopNVisibility()">
                 <option value="weekly">Weekly</option>

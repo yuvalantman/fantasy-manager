@@ -190,6 +190,17 @@ class data_loader:
         return df
 
     def load_teams(self):
+        timestamp_file = "data/teams_scrape_timestamp.json"
+        
+        # Check if timestamp file exists and is less than 6 hours old
+        if os.path.exists(timestamp_file):
+            with open(timestamp_file, "r") as f:
+                timestamp_data = json.load(f)
+            last_updated = datetime.fromisoformat(timestamp_data["last_updated"])
+            if datetime.now() - last_updated < timedelta(hours=6):
+                print("[INFO] Scrape was done less than 6 hours ago. Skipping scrape.")
+                return
+        
         print("[INFO] Loading teams data...")
         frontcourt = self.get_table_for_view("Front Court")
         backcourt = self.get_table_for_view("Back Court")
@@ -207,6 +218,12 @@ class data_loader:
         #best_filter.to_csv(r'C:\Users\yuval\notebooks\fantasy_manager\data\top_update_players.csv', index=False)
         best_filter.to_csv(r'C:\Users\yuval\notebooks\fantasy_manager\data\top_update_players_2026.csv', index=False)
         print("[INFO] Saved filtered team data to CSV.")
+        
+        # Update timestamp file
+        os.makedirs(os.path.dirname(timestamp_file), exist_ok=True)
+        with open(timestamp_file, "w") as f:
+            json.dump({"last_updated": datetime.now().isoformat()}, f)
+        print("[INFO] Updated scrape timestamp.")
 
     
     def setup_schedule_driver(self):

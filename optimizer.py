@@ -21,7 +21,8 @@ class FantasyOptimizer:
             self.my_team = my_team.copy()
 
         self.best_filter = best_filter_path.copy()
-
+        self.schedule_second = schedule_week2.copy()
+        self.schedule = schedule_week1.copy()
         # Standardize position names (to avoid issues with capitalization)
         self.my_team["Pos"] = self.my_team["Pos"].str.lower()
         self.best_filter["Pos"] = self.best_filter["Pos"].str.lower()
@@ -200,34 +201,100 @@ class FantasyOptimizer:
             } for day, data in lineup.items()
         }
     
-    def evaluate_swap_fast(self, in_players, base_lineup):
+    def evaluate_swap_fast(self, in_players, base_lineup, day_range=None):
+        """
+        Evaluate swap and return total form.
+        If day_range is provided, only sum those days. Otherwise sum all days (1-7).
+        """
+        if day_range is None:
+            day_range = range(1, 8)
+        
         team_lineup = self.clone_lineup(base_lineup)
         # Only add in_players now — out_players are assumed already removed
         for row in in_players:
             day_lineup = self.update_day_lineup_add(team_lineup, row)
 
-        total_form = sum(day_lineup[day]["form_total"] for day in range(1, 8))
+        total_form = sum(day_lineup[day]["form_total"] for day in day_range)
         #print(f"📊 Weekly form after swap: {total_form:.2f}")
         return total_form
 
-    def print_weekly_form(self, team_df=None):
+    def calculate_split_form(self, new_team_df, old_team_df, sub_day):
+        """
+        Calculate weekly form split by substitution day.
+        Returns: (total_form_with_split, old_team_form, new_team_form)
+        where total_form_with_split = form_before_sub_day + form_from_sub_day_onwards
+        """
+        if sub_day is None or sub_day <= 1:
+            # No split, use new team for full week
+            new_team_matrix = self.build_player_day_matrix(new_team_df.copy())
+            day_lineups = self.build_day_lineup(new_team_matrix)
+            new_form = sum(day_lineups[day]["form_total"] for day in range(1, 8))
+            return round(new_form, 2), 0, round(new_form, 2)
+        
+        # Build lineups for both teams
+        old_team_matrix = self.build_player_day_matrix(old_team_df.copy())
+        new_team_matrix = self.build_player_day_matrix(new_team_df.copy())
+        
+        old_day_lineups = self.build_day_lineup(old_team_matrix)
+        new_day_lineups = self.build_day_lineup(new_team_matrix)
+        
+        # Calculate form before sub_day using old team
+        old_form = sum(old_day_lineups[day]["form_total"] for day in range(1, sub_day))
+        
+        # Calculate form from sub_day onwards using new team
+        new_form = sum(new_day_lineups[day]["form_total"] for day in range(sub_day, 8))
+        
+        # Total split form
+        total_split_form = old_form + new_form
+        
+        return round(total_split_form, 2), round(old_form, 2), round(new_form, 2)
+
+    def print_weekly_form(self, team_df=None, old_team=None, sub_day=None):
         if team_df is None:
             team_df = self.my_team  # Default to current team if not provided
 
+        # Default sub_day to 1 if not provided (no split)
+        if sub_day is None:
+            sub_day = 1
+
         # Create player-day matrix (adds Day1 to Day7 columns)
         team_matrix = self.build_player_day_matrix(team_df)
+        
+        # If old_team is provided, create its matrix too (for split calculation)
+        old_team_matrix = None
+        if old_team is not None:
+            old_team_matrix = self.build_player_day_matrix(old_team.copy())
 
         # Build daily best lineups (5 best players per day with max 3 front and 3 back)
         day_lineups = self.build_day_lineup(team_matrix)
+        
+        # If old_team exists, build its lineups too
+        old_day_lineups = None
+        if old_team_matrix is not None:
+            old_day_lineups = self.build_day_lineup(old_team_matrix)
 
         weekly_sched = {}
 
         for day in range(1, 8):
-            players = day_lineups[day]["total"]
-            form_sum = day_lineups[day]["form_total"]
+            # Determine which team/lineup to use based on sub_day
+            if old_day_lineups is not None and day < sub_day:
+                # Use old team before sub_day
+                players = old_day_lineups[day]["total"]
+                form_sum = old_day_lineups[day]["form_total"]
+                day_marker = None  # No marker for old team days
+            else:
+                # Use new team from sub_day onwards
+                players = day_lineups[day]["total"]
+                form_sum = day_lineups[day]["form_total"]
+                day_marker = "SUB" if (old_day_lineups is not None and day == sub_day) else None
 
             # Format each player as a dict {"Player": name, "Form": value}
             players_data = [{"Player": name, "Form": round(form, 1)} for form, name, pos in players]
+            
+            # Add day marker if it's the substitution day
+            if day_marker:
+                players_data.append({"SubstitutionDay": day_marker})
+            
             players_data.append({"Daily Total": round(form_sum, 1)})
 
             weekly_sched[day] = players_data
@@ -422,34 +489,72 @@ class FantasyOptimizer:
         print("✅ Player-day matrix built with Day1–Day7 columns.")
         return df
     
-    def print_weekly_form_second(self, team_df=None):
+    def print_weekly_form_second(self, team_df=None, old_team=None, sub_day=None):
         if team_df is None:
             team_df = self.my_team  # Default to current team if not provided
+
+        # Default sub_day to 1 if not provided (no split)
+        if sub_day is None:
+            sub_day = 1
 
         # Create player-day matrix (adds Day1 to Day7 columns)
         team_matrix = self.build_player_day_matrix_second(team_df)
 
+        # If old_team is provided, create its matrix too (for split calculation)
+        old_team_matrix = None
+        if old_team is not None:
+            old_team_matrix = self.build_player_day_matrix_second(old_team.copy())
+
         # Build daily best lineups (5 best players per day with max 3 front and 3 back)
         day_lineups = self.build_day_lineup(team_matrix)
+        
+        # If old_team exists, build its lineups too
+        old_day_lineups = None
+        if old_team_matrix is not None:
+            old_day_lineups = self.build_day_lineup(old_team_matrix)
 
         weekly_sched = {}
 
         for day in range(1, 8):
-            players = day_lineups[day]["total"]
-            form_sum = day_lineups[day]["form_total"]
+            # Determine which team/lineup to use based on sub_day
+            if old_day_lineups is not None and day < sub_day:
+                # Use old team before sub_day
+                players = old_day_lineups[day]["total"]
+                form_sum = old_day_lineups[day]["form_total"]
+                day_marker = None  # No marker for old team days
+            else:
+                # Use new team from sub_day onwards
+                players = day_lineups[day]["total"]
+                form_sum = day_lineups[day]["form_total"]
+                day_marker = "SUB" if (old_day_lineups is not None and day == sub_day) else None
 
             # Format each player as a dict {"Player": name, "Form": value}
             players_data = [{"Player": name, "Form": round(form, 1)} for form, name, pos in players]
+            
+            # Add day marker if it's the substitution day
+            if day_marker:
+                players_data.append({"SubstitutionDay": day_marker})
+            
+            players_data.append({"Daily Total": round(form_sum, 1)})
             players_data.append({"Daily Total": round(form_sum, 1)})
 
             weekly_sched[day] = players_data
 
         return weekly_sched
     
-    def find_best_weekly_substitutions(self, extra_salary=0, top_n=5):
+    def find_best_weekly_substitutions(self, extra_salary=0, top_n=5, untradable_players=None, must_trade_players=None, sub_day=None):
         print("🚀 Fast weekly substitution starting...")
         print(self.my_team.columns)
         print(self.best_filter.columns)
+        
+        # Default empty lists if not provided
+        if untradable_players is None:
+            untradable_players = []
+        if must_trade_players is None:
+            must_trade_players = []
+        
+        print(f"📌 Constraints: Untradable={untradable_players}, Must Trade={must_trade_players}, Sub Day={sub_day}")
+        
         extra_salary = float(extra_salary)
         self.my_team = self.my_team.rename(columns={"$": "Salary"})
         self.best_filter = self.best_filter.rename(columns={"$": "Salary"})
@@ -460,19 +565,33 @@ class FantasyOptimizer:
         pool_matrix = available_players
 
         # delete later
-        # team_matrix["Day4"] = 0.0
-        # pool_matrix["Day4"] = 0.0
+        # team_matrix["Day1"] = 0.0
+        # pool_matrix["Day1"]= 0.0
+        # team_matrix["Day2"] = 0.0
+        # pool_matrix["Day2"] = 0.0
 
         base_lineup = self.build_day_lineup(team_matrix)
-        current_form = sum(base_lineup[day]["form_total"] for day in range(1, 8))
-        #current_form = sum(base_lineup[day]["form_total"] for day in list(range(1, 4)) + list(range(5, 8)))
+        # Calculate current_form for the full week (days 1-7)
+        # This is what we'll compare against - the baseline to show form_gain
+        current_form_full_week = sum(base_lineup[day]["form_total"] for day in range(1, 8))
+        
+        # For optimization, we only optimize days sub_day onwards
+        if sub_day and sub_day > 1:
+            # Form from sub_day onwards (what we optimize for)
+            optimization_form = sum(base_lineup[day]["form_total"] for day in range(sub_day, 8))
+            day_range = range(sub_day, 8)
+        else:
+            # Optimize full week
+            optimization_form = current_form_full_week
+            day_range = range(1, 8)
+        
         current_salary = self.my_team["Salary"].sum()
         count = 0
         top_swaps = []
         heapq.heapify(top_swaps)
         
-        heapq.heappush(top_swaps, (current_form, current_salary, [], []))
-        min_top_form = current_form
+        heapq.heappush(top_swaps, (optimization_form, current_salary, [], []))
+        min_top_form = optimization_form
 
         valid_in_combos = defaultdict(list)
 
@@ -507,7 +626,21 @@ class FantasyOptimizer:
                 #out_salary = out_df["Salary"].sum()
                 out_list = [p._asdict() for p in out_players]
                 out_salary = sum(p["Salary"] for p in out_list)
-
+                
+                # ===== NEW: Check constraints =====
+                out_player_names = [p["Player"] for p in out_list]
+                
+                # Constraint 1: Can't trade untradable players
+                if any(player in untradable_players for player in out_player_names):
+                    continue
+                
+                # Constraint 2: Must trade - only consider swaps that include the required players
+                if must_trade_players:
+                    if not any(player in must_trade_players for player in out_player_names):
+                        continue
+                    # If must_trade_players has 2 players, they must all be traded together
+                    if len(must_trade_players) == 2 and num_swaps == 1:
+                        continue  # Can't trade just 1 when 2 are required to trade
 
                 if num_swaps == 1:
                     pos = out_list[0]["Pos"]
@@ -536,7 +669,7 @@ class FantasyOptimizer:
                 for in_players, salary in valid_swaps:
                     count+=1
                     in_list = in_players if isinstance(in_players, list) else [in_players]
-                    new_form = self.evaluate_swap_fast(in_list, removed_lineup)
+                    new_form = self.evaluate_swap_fast(in_list, removed_lineup, day_range=day_range)
                     if new_form > min_top_form:
                         new_salary = current_salary - out_salary + salary
                         if len(top_swaps) < top_n:
@@ -547,25 +680,46 @@ class FantasyOptimizer:
 
         top_swaps.sort(reverse=True)
         print(f"total swaps optionable {count}")
-        # Now attach the weekly schedule for the final top swaps
-        final_results = []
+        
+        # Recalculate actual forms using print_weekly_form (the ground truth)
+        # This is critical because evaluate_swap_fast may calculate differently
+        swaps_with_actual_form = []
         for score, salary, out_players, in_players in top_swaps:
-            #new_team_df = self.my_team[~self.my_team["Player"].isin(out_players)].copy()
-            #in_df = self.best_filter[self.best_filter["Player"].isin(in_players)]
-            #final_team = pd.concat([new_team_df, in_df], ignore_index=True)
             new_team_dicts = [p for p in self.my_team.to_dict(orient="records") if p["Player"] not in out_players]
             in_dicts = [p for p in self.best_filter.to_dict(orient="records") if p["Player"] in in_players]
             final_team = pd.DataFrame(new_team_dicts + in_dicts)
+            
             start_sched = time.perf_counter()
-            weekly_sched = self.print_weekly_form(final_team)
+            # Pass old team and sub_day to print_weekly_form for split-team display
+            weekly_sched = self.print_weekly_form(final_team, old_team=self.my_team, sub_day=sub_day)
             print(f"🕒 Weekly form took: {time.perf_counter() - start_sched:.2f} sec")
-            final_results.append((
-                round(score, 2),
-                round(current_form, 2),
-                round(salary,1),
+            
+            # Calculate actual_new_form by summing the daily totals from the weekly_sched
+            # This is the ground truth - what the user will actually see
+            actual_new_form = sum(day_sched[-1]["Daily Total"] for day_sched in weekly_sched.values())
+            
+            swaps_with_actual_form.append((
+                actual_new_form,
+                salary,
                 out_players,
                 in_players,
                 final_team.reset_index(drop=True).to_dict(orient="records"),
+                weekly_sched
+            ))
+        
+        # RE-SORT by actual_new_form (descending) to get correct ordering
+        swaps_with_actual_form.sort(key=lambda x: x[0], reverse=True)
+        
+        # Now build final results with correct baseline comparison
+        final_results = []
+        for actual_new_form, salary, out_players, in_players, final_team_dict, weekly_sched in swaps_with_actual_form:
+            final_results.append((
+                round(actual_new_form, 2),
+                round(current_form_full_week, 2),
+                round(salary, 1),
+                out_players,
+                in_players,
+                final_team_dict,
                 weekly_sched
             ))
         print("subs")
@@ -701,7 +855,7 @@ class FantasyOptimizer:
             in_dicts = [p for p in self.best_filter.to_dict(orient="records") if p["Player"] in in_players]
             final_team = pd.DataFrame(new_team_dicts + in_dicts)
             start_sched = time.perf_counter()
-            weekly_sched = self.print_weekly_form_second(final_team)
+            weekly_sched = self.print_weekly_form_second(final_team, old_team=self.my_team, sub_day=None)
             print(f"🕒 Second-week weekly form took: {time.perf_counter() - start_sched:.2f} sec")
             final_results.append((
                 round(score, 2),
@@ -718,7 +872,7 @@ class FantasyOptimizer:
 
     
 
-    def find_best_Biweekly_substitutions(self, extra_salary=0, top_n=5):
+    def find_best_Biweekly_substitutions(self, extra_salary=0, top_n=5, untradable_players=None, must_trade_players=None, sub_day=None):
         """
         Find best bi-weekly plan:
             - 0–2 subs before Week 1 (using first schedule)
@@ -731,6 +885,12 @@ class FantasyOptimizer:
             raise ValueError("Second-week schedule not provided to FantasyOptimizer.")
 
         print("🚀 Bi-weekly substitution search starting...")
+        
+        # Default empty lists if not provided
+        if untradable_players is None:
+            untradable_players = []
+        if must_trade_players is None:
+            must_trade_players = []
 
         counter = itertools.count()
         extra_salary = float(extra_salary)
@@ -745,12 +905,17 @@ class FantasyOptimizer:
 
         # --- 1. Week 1 candidates (use weekly function with a slightly larger N) ---
         week1_candidates_n = max(top_n * 4, top_n + 10)
-        week1_swaps = self.find_best_weekly_substitutions(extra_salary=extra_salary, top_n=week1_candidates_n)
+        week1_swaps = self.find_best_weekly_substitutions(
+            extra_salary=extra_salary, top_n=week1_candidates_n,
+            untradable_players=untradable_players,
+            must_trade_players=must_trade_players,
+            sub_day=sub_day
+        )
 
         if not week1_swaps:
             print("⚠️ No week-1 swaps found, falling back to no-sub plan only.")
             # build baseline
-            base_sched = self.print_weekly_form(self.my_team)
+            base_sched = self.print_weekly_form(self.my_team, sub_day=sub_day)
             base_form = sum(d[-1]["Daily Total"] for d in base_sched.values())
             week1_swaps = [(base_form, base_form, start_salary, [], [], self.my_team.to_dict(orient="records"), base_sched)]
 
@@ -916,23 +1081,41 @@ class FantasyOptimizer:
     
     
     
-    def find_best_total_substitutions(self, extra_salary=0, top_n=5):
+    def find_best_total_substitutions(self, extra_salary=0, top_n=5, untradable_players=None, must_trade_players=None, sub_day=None):
         """Finds the best 1 or 2 substitutions that improve total form while respecting salary cap and position balance."""
 
         print("\n🔍 DEBUG: Starting Optimized Best Total Substitutions...\n")
+        
+        # Default empty lists if not provided
+        if untradable_players is None:
+            untradable_players = []
+        if must_trade_players is None:
+            must_trade_players = []
+        
+        print(f"📌 Constraints: Untradable={untradable_players}, Must Trade={must_trade_players}, Sub Day={sub_day}")
 
-        # Compute current total form and salary
-        current_form = self.my_team["Form"].sum()
-        current_salary = self.my_team["$"].sum()
-        max_salary = current_salary + extra_salary
-
-        print(f"🔵 Current Team Form: {current_form}, Salary: {current_salary}, Max Salary: {max_salary}\n")
-
-        # Ensure correct column naming
+        # Ensure correct column naming before any calculations
         self.my_team = self.my_team.rename(columns={"$": "Salary"})
         self.best_filter = self.best_filter.rename(columns={"$": "Salary"})
         self.my_team["Salary"] = self.my_team["Salary"].astype(float)
         self.best_filter["Salary"] = self.best_filter["Salary"].astype(float)
+        
+        # If sub_day is provided, calculate current_form only from sub_day onwards using day-based lineups
+        if sub_day and sub_day > 1:
+            print(f"📌 Sub_day mode: optimizing from day {sub_day} onwards")
+            team_matrix = self.build_player_day_matrix(self.my_team.copy())
+            day_lineups = self.build_day_lineup(team_matrix)
+            current_form = sum(day_lineups[day]["form_total"] for day in range(sub_day, 8))
+            day_range = range(sub_day, 8)
+        else:
+            # Regular mode: use full week Form sum
+            current_form = self.my_team["Form"].sum()
+            day_range = None
+        
+        current_salary = self.my_team["Salary"].sum()
+        max_salary = current_salary + extra_salary
+
+        print(f"🔵 Current Team Form: {current_form}, Salary: {current_salary}, Max Salary: {max_salary}\n")
 
         # Sort my team by Form (ascending) → Remove weak players first
         self.my_team = self.my_team.sort_values(by="Form", ascending=True)
@@ -985,6 +1168,21 @@ class FantasyOptimizer:
         for num_swaps in [1, 2]:
             for out_players in itertools.combinations(self.my_team.itertuples(index=False, name="PlayerTuple"), num_swaps):
                 out_list = list(out_players)
+                out_player_names = [p.Player for p in out_list]
+                
+                # ===== NEW: Check constraints =====
+                # Constraint 1: Can't trade untradable players
+                if any(player in untradable_players for player in out_player_names):
+                    continue
+                
+                # Constraint 2: Must trade - only consider swaps that include the required players
+                if must_trade_players:
+                    if not any(player in must_trade_players for player in out_player_names):
+                        continue
+                    # If must_trade_players has 2 players, they must all be traded together
+                    if len(must_trade_players) == 2 and num_swaps == 1:
+                        continue  # Can't trade just 1 when 2 are required to trade
+                
                 available_salary = sum(float(player.Salary) for player in out_list) + extra_salary
                 form_out = sum(float(player.Form) for player in out_list)
 
@@ -1052,6 +1250,29 @@ class FantasyOptimizer:
 
         # **Step 10: Get the top N best swaps (sorted by highest form gain)**
         top_swaps.sort(reverse=True, key=lambda x: x[0])  # Sort by highest form gain
+
+        # **Step 11: If sub_day is provided, recalculate forms using day-based lineups**
+        if sub_day and sub_day > 1 and day_range is not None:
+            recalculated_swaps = []
+            for form_gain, new_form, current_form_reported, salary, out_players, in_players, new_team_records in top_swaps:
+                new_team = pd.DataFrame(new_team_records)
+                # Calculate form from sub_day onwards using new team
+                new_team_matrix = self.build_player_day_matrix(new_team.copy())
+                new_day_lineups = self.build_day_lineup(new_team_matrix)
+                new_form_from_subday = sum(new_day_lineups[day]["form_total"] for day in day_range)
+                actual_form_gain = new_form_from_subday - current_form
+                recalculated_swaps.append((
+                    round(actual_form_gain, 1),
+                    round(new_form_from_subday, 1),
+                    round(current_form, 1),
+                    round(salary, 1),
+                    out_players,
+                    in_players,
+                    new_team_records
+                ))
+            # Re-sort by the new form gain
+            recalculated_swaps.sort(reverse=True, key=lambda x: x[0])
+            return recalculated_swaps
 
         return top_swaps  # Returns a list of top swaps instead of just the best one
 

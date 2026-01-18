@@ -228,8 +228,21 @@ def compute_result():
         # optimizer = FantasyOptimizer(pd.DataFrame(user_team_data), pd.DataFrame(updated_players_data), SCHEDULE_CSV, SECOND_SCHEDULE_CSV)
         # best_swaps = optimizer.find_best_weekly_substitutions(extra_salary, top_n) if sub_type == "weekly" else optimizer.find_best_total_substitutions(extra_salary, top_n)
 
+        # Extract new parameters from request
+        untradable_players = data.get("untradable_players", [])
+        must_trade_players = data.get("must_trade_players", [])
+        sub_day = data.get("sub_day")
+        if sub_day:
+            sub_day = int(sub_day)  # Convert to int (1-7)
+        
         schedule_week1 = session.get("schedule_week1")
         schedule_week2 = session.get("schedule_week2")
+        
+        # Convert string keys to int keys if needed
+        if schedule_week1 and isinstance(list(schedule_week1.keys())[0] if schedule_week1.keys() else None, str):
+            schedule_week1 = {int(k): v for k, v in schedule_week1.items()}
+        if schedule_week2 and isinstance(list(schedule_week2.keys())[0] if schedule_week2.keys() else None, str):
+            schedule_week2 = {int(k): v for k, v in schedule_week2.items()}
 
         optimizer = FantasyOptimizer(
             pd.DataFrame(user_team_data),
@@ -240,11 +253,26 @@ def compute_result():
 
 
         if sub_type == "weekly":
-            best_swaps = optimizer.find_best_weekly_substitutions(extra_salary, top_n)
+            best_swaps = optimizer.find_best_weekly_substitutions(
+                extra_salary, top_n,
+                untradable_players=untradable_players,
+                must_trade_players=must_trade_players,
+                sub_day=sub_day
+            )
         elif sub_type == "total":
-            best_swaps = optimizer.find_best_total_substitutions(extra_salary, top_n)
+            best_swaps = optimizer.find_best_total_substitutions(
+                extra_salary, top_n,
+                untradable_players=untradable_players,
+                must_trade_players=must_trade_players,
+                sub_day=sub_day
+            )
         elif sub_type == "biweekly":
-            best_swaps = optimizer.find_best_Biweekly_substitutions(extra_salary, top_n)
+            best_swaps = optimizer.find_best_Biweekly_substitutions(
+                extra_salary, top_n,
+                untradable_players=untradable_players,
+                must_trade_players=must_trade_players,
+                sub_day=sub_day
+            )
         else:
             return jsonify({"error": "⚠️ Invalid substitution type."})
         
@@ -347,6 +375,10 @@ def print_weekly_schedule():
         return jsonify({"error": "⚠️ No team has been entered yet!"})
 
     schedule_week1 = session.get("schedule_week1")
+    
+    # Convert string keys to int keys if needed
+    if schedule_week1 and isinstance(list(schedule_week1.keys())[0] if schedule_week1.keys() else None, str):
+        schedule_week1 = {int(k): v for k, v in schedule_week1.items()}
 
     user_team = pd.DataFrame(user_team_data)
     optimizer = FantasyOptimizer(
