@@ -126,23 +126,33 @@ class data_loader:
                 break
 
             try:
-                #buttons = driver.find_elements(By.CLASS_NAME, "sc-blHHSb sc-gtLWhw ewFPSo jTrQY")
-                buttons = driver.find_elements(By.CSS_SELECTOR, "#root > div.sc-fUEImY.bNKwGf > div > div.sc-blHHSb.sc-gtLWhw.ewFPSo.jTrzQY > button.sc-jrVwZP.gHULxL")
+                # Try XPath first (more reliable)
                 next_button = None
-                for btn in buttons:
-                    try:
-                        span = btn.find_element(By.TAG_NAME, "span")
-                        if span.text.strip().lower() == "next":
-                            next_button = btn
-                            break
-                    except:
-                        continue
+                try:
+                    next_button = driver.find_element(By.XPATH, "//*[@id='root']/div[3]/div/div[4]/button[3]")
+                    span = next_button.find_element(By.TAG_NAME, "span")
+                    if span.text.strip().lower() != "next":
+                        next_button = None
+                except:
+                    pass
+                
+                # Fallback: search all buttons for one with "Next" span
+                if not next_button:
+                    buttons = driver.find_elements(By.TAG_NAME, "button")
+                    for btn in buttons:
+                        try:
+                            span = btn.find_element(By.TAG_NAME, "span")
+                            if span.text.strip().lower() == "next":
+                                next_button = btn
+                                break
+                        except:
+                            continue
 
                 if not next_button:
                     print("[WARN] Next page button not found.")
                     break
 
-                if "disabled" in next_button.get_attribute("class"):
+                if "disabled" in (next_button.get_attribute("class") or ""):
                     print("[INFO] No more pages to load.")
                     break
 
@@ -213,7 +223,7 @@ class data_loader:
         best_filter["Player"] = best_filter["Player"].str[:-3].str.strip()
         best_filter["Form"] = pd.to_numeric(best_filter["Form"], errors="coerce")
         #best_filter["Form"] = pd.to_numeric(best_filter["**"], errors="coerce")
-        best_filter = best_filter[best_filter["Form"] >= 15]
+        best_filter = best_filter[best_filter["Form"] >= 20]
         best_filter = best_filter.sort_values(by="Form", ascending=False).reset_index(drop=True)
         #best_filter.to_csv(r'C:\Users\yuval\notebooks\fantasy_manager\data\top_update_players.csv', index=False)
         best_filter.to_csv(r'C:\Users\yuval\notebooks\fantasy_manager\data\top_update_players_2026.csv', index=False)

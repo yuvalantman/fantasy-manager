@@ -1631,6 +1631,435 @@ class FantasyOptimizerPrefixSuffix:
         for p in result['final_team']:
             print(f"   {p['Player']} ({p['Pos']}, {p['team']}) - Form: {p['Form']}, $: {p['Salary']}")
 
+    # ============================================================================
+    # Late Week Substitution Method
+    # ============================================================================
+    
+    def find_best_late_week_substitutions(
+        self,
+        partial_week_schedule: dict,
+        next_week_schedule: dict,
+        week_after_schedule: dict,
+        late_week_day: int,
+        max_subs: int = 2,
+        extra_salary: float = 0,
+        top_n: int = 5,
+        untradable_players: List[str] = None,
+        must_trade_players: List[str] = None,
+        w1: float = 0.8,
+        w2: float = 0.2,
+        allow_domination_prune: bool = True,
+        shortlist_k: int = 60
+    ) -> List[Dict[str, Any]]:
+        """
+        Find best substitutions for late-week scenario.
+        
+        Scenario: User is on day X of current week with N subs remaining.
+        Subs happen on day X, then the new team carries into next full week.
+        
+        Score calculation:
+        - Partial week (days X to 7 of current week) + full next week = "Week 1" with weight w1
+        - Week after = "Week 2" with weight w2
+        
+        Args:
+            partial_week_schedule: Schedule for current partial week (days will be filtered to X-7)
+            next_week_schedule: Schedule for next full week (this is the "main" week)
+            week_after_schedule: Schedule for week 2 lookahead
+            late_week_day: Which day of current week to start subs from (1-7)
+            max_subs: Maximum number of subs allowed (1 or 2)
+            extra_salary: Available extra salary for transactions
+            top_n: Number of top results to return
+            untradable_players: Players that cannot be sold
+            must_trade_players: Players that must be sold
+            w1: Weight for week 1 (partial + next week) score
+            w2: Weight for week 2 (week after) score
+            allow_domination_prune: Whether to apply domination pruning
+            shortlist_k: Number of candidates to keep in shortlist
+            
+        Returns:
+            List of top_n substitution plans with scores and details
+        """
+        logger.info(f"🚀 Starting late-week substitution search (day {late_week_day}, max {max_subs} subs)...")
+        start_time = time.perf_counter()
+        
+        # Initialize
+        if untradable_players is None:
+            untradable_players = []
+        if must_trade_players is None:
+            must_trade_players = []
+            
+        extra_salary = float(extra_salary)
+        
+        # Normalize schedules to int keys
+        partial_week_schedule = {int(k): v for k, v in partial_week_schedule.items()}
+        next_week_schedule = {int(k): v for k, v in next_week_schedule.items()}
+        week_after_schedule = {int(k): v for k, v in week_after_schedule.items()}
+        
+        # Store schedules for scoring
+        self._partial_schedule = partial_week_schedule
+        self._next_week_schedule = next_week_schedule
+        self._week_after_schedule = week_after_schedule
+        self._late_week_day = late_week_day
+        
+        # Build player data using next_week_schedule (main schedule for comparison)
+        self.schedule = next_week_schedule
+        self.playing_teams_dict = {day: next_week_schedule.get(day, []) for day in range(1, 8)}
+        self.playing_teams_second_dict = {day: week_after_schedule.get(day, []) for day in range(1, 8)}
+        self._build_player_data_lists(week=1)
+        
+        # Build initial team state
+        team_state = self._build_team_state(self._my_team_players)
+        base_weekly_score = self._compute_late_week_score(
+            self._my_team_players,
+            partial_week_schedule,
+            next_week_schedule,
+            late_week_day
+        )
+        
+        logger.info(f"📊 Base late-week score: {base_weekly_score:.2f}")
+        
+        # Build shortlist
+        stats = PerformanceStats()
+        candidates = self._pool_players
+        shortlist = self._build_shortlist(
+            team_state, candidates, k=shortlist_k,
+            allow_domination_prune=allow_domination_prune,
+            stats=stats
+        )
+        
+        logger.info(f"📋 Shortlist size: {len(shortlist)} players")
+        
+        # Group by position
+        front_candidates = [c for c in shortlist if c.pos == "front"]
+        back_candidates = [c for c in shortlist if c.pos == "back"]
+        
+        results = []
+        
+        # === No substitution option ===
+        week1_score = base_weekly_score
+        week2_score = self._compute_week_score_with_schedule(
+            self._my_team_players, week_after_schedule
+        )
+        weighted_score = w1 * week1_score + w2 * week2_score
+        
+        results.append({
+            "weighted_score": weighted_score,
+            "week1_score": week1_score,
+            "week2_score": week2_score,
+            "partial_week_score": self._compute_partial_week_score(
+                self._my_team_players, partial_week_schedule, late_week_day
+            ),
+            "next_week_score": self._compute_week_score_with_schedule(
+                self._my_team_players, next_week_schedule
+            ),
+            "num_subs": 0,
+            "subs": [],
+            "final_players": self._my_team_players,
+            "final_wallet": extra_salary
+        })
+        
+        # === Single substitutions ===
+        logger.info("🔄 Evaluating single substitutions...")
+        single_count = 0
+        
+        out_combos_1 = self._generate_out_combinations(
+            team_state, untradable_players, must_trade_players, 1
+        )
+        
+        for (out_player,) in out_combos_1:
+            candidates_for_pos = front_candidates if out_player.pos == "front" else back_candidates
+            
+            for in_player in candidates_for_pos:
+                if in_player.name in team_state.player_names:
+                    continue
+                    
+                # Check salary constraint
+                wallet_after = extra_salary + out_player.salary_my_team - in_player.salary_market
+                if wallet_after < 0:
+                    continue
+                    
+                # Check NBA team constraint
+                nba_counts = dict(team_state.nba_team_counts)
+                nba_counts[out_player.nba_team] = nba_counts.get(out_player.nba_team, 0) - 1
+                nba_counts[in_player.nba_team] = nba_counts.get(in_player.nba_team, 0) + 1
+                if nba_counts[in_player.nba_team] > 2:
+                    continue
+                    
+                # Apply substitution
+                new_players = self._apply_substitution(
+                    team_state.players, [out_player], [in_player]
+                )
+                
+                # Compute scores
+                week1_score = self._compute_late_week_score(
+                    new_players, partial_week_schedule, next_week_schedule, late_week_day
+                )
+                week2_score = self._compute_week_score_with_schedule(
+                    new_players, week_after_schedule
+                )
+                weighted_score = w1 * week1_score + w2 * week2_score
+                
+                results.append({
+                    "weighted_score": weighted_score,
+                    "week1_score": week1_score,
+                    "week2_score": week2_score,
+                    "partial_week_score": self._compute_partial_week_score(
+                        new_players, partial_week_schedule, late_week_day
+                    ),
+                    "next_week_score": self._compute_week_score_with_schedule(
+                        new_players, next_week_schedule
+                    ),
+                    "num_subs": 1,
+                    "subs": [{
+                        "day": late_week_day,
+                        "out": out_player.name,
+                        "in": in_player.name,
+                        "out_salary": out_player.salary_my_team,
+                        "in_salary": in_player.salary_market
+                    }],
+                    "final_players": new_players,
+                    "final_wallet": wallet_after
+                })
+                single_count += 1
+                
+        logger.info(f"  Evaluated {single_count} single sub scenarios")
+        
+        # === Double substitutions (if allowed) ===
+        if max_subs >= 2:
+            logger.info("🔄 Evaluating double substitutions...")
+            double_count = 0
+            
+            out_combos_2 = self._generate_out_combinations(
+                team_state, untradable_players, must_trade_players, 2
+            )
+            
+            for out_players in out_combos_2:
+                out_pos = sorted([p.pos for p in out_players])
+                
+                if out_pos == ["front", "front"]:
+                    in_candidates_list = list(combinations(front_candidates, 2))
+                elif out_pos == ["back", "back"]:
+                    in_candidates_list = list(combinations(back_candidates, 2))
+                else:
+                    in_candidates_list = [(f, b) for f in front_candidates for b in back_candidates]
+                    
+                for in_players in in_candidates_list:
+                    if any(p.name in team_state.player_names for p in in_players):
+                        continue
+                    if len(set(p.name for p in in_players)) != len(in_players):
+                        continue
+                        
+                    # Check salary constraint
+                    wallet_after = extra_salary
+                    for out_p in out_players:
+                        wallet_after += out_p.salary_my_team
+                    for in_p in in_players:
+                        wallet_after -= in_p.salary_market
+                    if wallet_after < 0:
+                        continue
+                        
+                    # Check NBA team constraints
+                    nba_counts = dict(team_state.nba_team_counts)
+                    for out_p in out_players:
+                        nba_counts[out_p.nba_team] = nba_counts.get(out_p.nba_team, 0) - 1
+                    for in_p in in_players:
+                        nba_counts[in_p.nba_team] = nba_counts.get(in_p.nba_team, 0) + 1
+                        if nba_counts[in_p.nba_team] > 2:
+                            break
+                    else:
+                        # All constraints passed
+                        new_players = self._apply_substitution(
+                            team_state.players, list(out_players), list(in_players)
+                        )
+                        
+                        week1_score = self._compute_late_week_score(
+                            new_players, partial_week_schedule, next_week_schedule, late_week_day
+                        )
+                        week2_score = self._compute_week_score_with_schedule(
+                            new_players, week_after_schedule
+                        )
+                        weighted_score = w1 * week1_score + w2 * week2_score
+                        
+                        results.append({
+                            "weighted_score": weighted_score,
+                            "week1_score": week1_score,
+                            "week2_score": week2_score,
+                            "partial_week_score": self._compute_partial_week_score(
+                                new_players, partial_week_schedule, late_week_day
+                            ),
+                            "next_week_score": self._compute_week_score_with_schedule(
+                                new_players, next_week_schedule
+                            ),
+                            "num_subs": 2,
+                            "subs": [
+                                {"day": late_week_day, "out": out_players[0].name, "in": in_players[0].name,
+                                 "out_salary": out_players[0].salary_my_team, "in_salary": in_players[0].salary_market},
+                                {"day": late_week_day, "out": out_players[1].name, "in": in_players[1].name,
+                                 "out_salary": out_players[1].salary_my_team, "in_salary": in_players[1].salary_market}
+                            ],
+                            "final_players": new_players,
+                            "final_wallet": wallet_after
+                        })
+                        double_count += 1
+                        
+            logger.info(f"  Evaluated {double_count} double sub scenarios")
+        
+        # Sort and select top N
+        results.sort(key=lambda x: x["weighted_score"], reverse=True)
+        top_results = results[:top_n]
+        
+        # Format output
+        final_output = []
+        for r in top_results:
+            final_team_data = []
+            for p in r["final_players"]:
+                final_team_data.append({
+                    "Player": p.name,
+                    "Pos": p.pos,
+                    "team": p.nba_team,
+                    "Form": p.form,
+                    "Salary": p.salary_market
+                })
+                
+            # Build weekly schedule for next full week only
+            weekly_sched = self._build_weekly_schedule_for_late_week(
+                r["final_players"], r["subs"], next_week_schedule
+            )
+            
+            output = {
+                "total_score": round(r["weighted_score"], 2),
+                "week1_score": round(r["week1_score"], 2),
+                "week2_score": round(r["week2_score"], 2),
+                "partial_week_score": round(r["partial_week_score"], 2),
+                "next_week_score": round(r["next_week_score"], 2),
+                "num_subs": r["num_subs"],
+                "substitution_plan": {
+                    "subs": r["subs"],
+                    "starting_wallet": extra_salary,
+                    "final_wallet": round(r["final_wallet"], 2),
+                    "sub_day_current_week": late_week_day
+                },
+                "final_team": final_team_data,
+                "weekly_schedule": weekly_sched,
+                "legal": True
+            }
+            final_output.append(output)
+            
+        elapsed = time.perf_counter() - start_time
+        logger.info(f"🏁 Late-week search completed in {elapsed:.2f} seconds")
+        
+        return final_output
+    
+    def _compute_late_week_score(
+        self,
+        players: List[PlayerData],
+        partial_schedule: dict,
+        next_week_schedule: dict,
+        late_week_day: int
+    ) -> float:
+        """
+        Compute combined score for late week scenario.
+        
+        Score = partial week (days late_week_day to 7) + full next week
+        """
+        partial_score = self._compute_partial_week_score(
+            players, partial_schedule, late_week_day
+        )
+        next_week_score = self._compute_week_score_with_schedule(
+            players, next_week_schedule
+        )
+        return partial_score + next_week_score
+    
+    def _compute_partial_week_score(
+        self,
+        players: List[PlayerData],
+        schedule: dict,
+        start_day: int
+    ) -> float:
+        """Compute score for days start_day to 7 using given schedule."""
+        total = 0.0
+        for day in range(start_day, 8):
+            total += self._compute_daily_score_with_schedule(players, day, schedule)
+        return total
+    
+    def _compute_week_score_with_schedule(
+        self,
+        players: List[PlayerData],
+        schedule: dict
+    ) -> float:
+        """Compute full week score (days 1-7) using given schedule."""
+        total = 0.0
+        for day in range(1, 8):
+            total += self._compute_daily_score_with_schedule(players, day, schedule)
+        return total
+    
+    def _compute_daily_score_with_schedule(
+        self,
+        players: List[PlayerData],
+        day: int,
+        schedule: dict
+    ) -> float:
+        """Compute daily score using specified schedule."""
+        playing_teams = schedule.get(day, [])
+        
+        front_forms = []
+        back_forms = []
+        
+        for p in players:
+            if p.nba_team in playing_teams:
+                if p.pos == "front":
+                    front_forms.append(p.form)
+                else:
+                    back_forms.append(p.form)
+                    
+        front_forms.sort(reverse=True)
+        back_forms.sort(reverse=True)
+        
+        combined = front_forms[:3] + back_forms[:3]
+        combined.sort(reverse=True)
+        
+        return sum(combined[:5])
+    
+    def _build_weekly_schedule_for_late_week(
+        self,
+        players: List[PlayerData],
+        subs: List[Dict],
+        next_week_schedule: dict
+    ) -> Dict[int, List[Dict]]:
+        """
+        Build weekly schedule display for late week scenario.
+        Shows the next full week only (not the partial current week).
+        """
+        weekly_sched = {}
+        
+        for day in range(1, 8):
+            day_data = []
+            playing_teams = next_week_schedule.get(day, [])
+            
+            playing = []
+            for p in players:
+                if p.nba_team in playing_teams:
+                    playing.append((p.form, p.name, p.pos))
+                    
+            front = [(f, n, ps) for f, n, ps in playing if ps == "front"]
+            back = [(f, n, ps) for f, n, ps in playing if ps == "back"]
+            
+            front.sort(reverse=True)
+            back.sort(reverse=True)
+            
+            combined = front[:3] + back[:3]
+            combined.sort(reverse=True)
+            lineup = combined[:5]
+            
+            for form, name, pos in lineup:
+                day_data.append({"Player": name, "Form": round(form, 1), "Pos": pos})
+                
+            daily_total = sum(f for f, _, _ in lineup)
+            day_data.append({"Daily Total": round(daily_total, 1)})
+            weekly_sched[day] = day_data
+            
+        return weekly_sched
+
 
 # ============================================================================
 # Parallel Evaluation Support

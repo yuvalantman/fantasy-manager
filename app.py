@@ -36,9 +36,9 @@ BIWEEKLY_SCHEDULE_CSV = "data/GWSchedule26_4.csv"
 full_players_df = pd.read_csv(FULL_PLAYERS_CSV)
 
 # Update Deni Avdija's form to 40 (temporary override)
-# if "Deni Avdija" in full_players_df["Player"].values:
-#     full_players_df.loc[full_players_df["Player"] == "Deni Avdija", "Form"] = 49
-#     print("✅ Updated Deni Avdija form to 40 in full_players_df")
+if "Jalen Duren" in full_players_df["Player"].values:
+    full_players_df.loc[full_players_df["Player"] == "Jalen Duren", "Form"] = 40
+    print("✅ Updated Jalen Duren form to 40 in full_players_df")
 
 # Add Deni Avdija manually (not in dataset)
 # deni_avdija_row = pd.DataFrame([{
@@ -335,6 +335,81 @@ def compute_result():
             )
             # Results are already in dict format, convert for response
             best_swaps = results_dict  # Keep as dict for new display format
+        elif sub_type == "late_week_sub":
+            # Late week substitution: user is on day X of current week with 1-2 subs remaining
+            # Score = 0.8 * (partial current week + next full week) + 0.2 * week after
+            
+            late_week_day = data.get("late_week_day")
+            max_subs = data.get("subs_remaining", 2)
+            if late_week_day:
+                late_week_day = int(late_week_day)
+            else:
+                late_week_day = 7  # Default to day 7
+            max_subs = int(max_subs)
+            
+            # Get 3 weeks of schedule
+            schedules = app.config["SCHEDULE_DATA"]
+            available_weeks = sorted(schedules.keys(), key=lambda x: int(x))
+            
+            # Get user-selected weeks or derive from session
+            selected_gw1 = session.get("selected_gw1")
+            selected_gw2 = session.get("selected_gw2")
+            
+            if selected_gw1 is None or selected_gw2 is None:
+                if len(available_weeks) < 3:
+                    return jsonify({"error": "⚠️ Need at least 3 weeks of schedule data for late week sub."})
+                partial_week_key = available_weeks[0]
+                next_week_key = available_weeks[1]
+                week_after_key = available_weeks[2]
+            else:
+                # selected_gw1 is current partial week, selected_gw2 is next week
+                partial_week_key = str(selected_gw1)
+                next_week_key = str(selected_gw2)
+                
+                # Find week after selected_gw2
+                try:
+                    idx = available_weeks.index(next_week_key)
+                    if idx + 1 < len(available_weeks):
+                        week_after_key = available_weeks[idx + 1]
+                    else:
+                        week_after_key = next_week_key  # Fallback to same week if no more weeks
+                except ValueError:
+                    return jsonify({"error": f"⚠️ Selected week {next_week_key} not found in schedule."})
+            
+            partial_week_schedule = schedules.get(partial_week_key, {})
+            next_week_schedule = schedules.get(next_week_key, {})
+            week_after_schedule = schedules.get(week_after_key, {})
+            
+            print(f"📅 Late week sub: partial week {partial_week_key} (day {late_week_day}), next week {next_week_key}, week after {week_after_key}")
+            
+            # Use prefix-suffix optimizer for late week subs
+            optimizer_ps = FantasyOptimizerPrefixSuffix(
+                pd.DataFrame(user_team_data),
+                pd.DataFrame(updated_players_data),
+                next_week_schedule,
+                week_after_schedule
+            )
+            
+            # Get weights
+            w1 = float(data.get("week1_weight", 0.8))
+            w2 = float(data.get("week2_weight", 0.2))
+            
+            results_dict = optimizer_ps.find_best_late_week_substitutions(
+                partial_week_schedule=partial_week_schedule,
+                next_week_schedule=next_week_schedule,
+                week_after_schedule=week_after_schedule,
+                late_week_day=late_week_day,
+                max_subs=max_subs,
+                extra_salary=extra_salary,
+                top_n=top_n,
+                untradable_players=untradable_players,
+                must_trade_players=must_trade_players,
+                w1=w1,
+                w2=w2,
+                allow_domination_prune=True,
+                shortlist_k=60
+            )
+            best_swaps = results_dict
         elif sub_type == "biweekly":
             best_swaps = optimizer.find_best_Biweekly_substitutions(
                 extra_salary, top_n,
@@ -404,6 +479,29 @@ def compute_result():
                     "total_score": result['total_score'],
                     "week1_score": result['week1_score'],
                     "week2_score": result['week2_score'],
+                    "num_subs": result['num_subs'],
+                    "substitution_plan": result['substitution_plan'],
+                    "substitutions_out": out_players,
+                    "substitutions_in": in_players,
+                    "new_salary": round(final_team_salary, 1),
+                    "new_team": clean_dict_keys(result['final_team']),
+                    "weekly_sched": json.dumps(convert_floats(result['weekly_schedule'])),
+                    "legal": result['legal']
+                })
+        elif sub_type == "late_week_sub":
+            # Late week sub format - similar to weekly_anyday but with partial week info
+            response_data["top_substitutions"] = []
+            for result in best_swaps:
+                out_players = [sub['out'] for sub in result['substitution_plan']['subs']]
+                in_players = [sub['in'] for sub in result['substitution_plan']['subs']]
+                final_team_salary = sum(p['Salary'] for p in result['final_team'])
+                
+                response_data["top_substitutions"].append({
+                    "total_score": result['total_score'],
+                    "week1_score": result['week1_score'],
+                    "week2_score": result['week2_score'],
+                    "partial_week_score": result['partial_week_score'],
+                    "next_week_score": result['next_week_score'],
                     "num_subs": result['num_subs'],
                     "substitution_plan": result['substitution_plan'],
                     "substitutions_out": out_players,

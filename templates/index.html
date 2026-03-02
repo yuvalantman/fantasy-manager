@@ -16,16 +16,16 @@
             // auto-fill player inputs for debugging
             if(location.hostname === "localhost" || location.hostname === "127.0.0.1"){
                 const debugTeam = [
-                    { name: "Jalen Johnson", salary: 14.1 },
-                    { name: "Tyrese Maxey", salary: 15.4 },
-                    { name: "Deni Avdija", salary: 12.4 },
-                    { name: "Derik Queen", salary: 6.7 },
+                    { name: "Jalen Duren", salary: 12.6 },
+                    { name: "Cade Cunningham", salary: 17.5 },
+                    { name: "Donovan Clingan", salary: 8.7 },
+                    { name: "GG Jackson", salary: 8.4 },
                     { name: "Victor Wembanyama", salary: 18.8 },
-                    { name: "Maxime Raynaud", salary: 4.7 },
-                    { name: "Jordan Miller", salary: 4.5 },
+                    { name: "Gui Santos", salary: 4.5 },
+                    { name: "Ryan Rollins", salary: 6.4 },
                     { name: "Isaiah Collier", salary: 8.6 },
-                    { name: "Kon Knueppel", salary: 6.9 },
-                    { name: "Anthony Black", salary: 8.2 },
+                    { name: "Kon Knueppel", salary: 7 },
+                    { name: "Nolan Traore", salary: 4.5 },
                 ];
 
                 const playerInputs = document.querySelectorAll(".player-input");
@@ -39,7 +39,7 @@
                 });
 
                 // Optional: auto-fill extra salary too
-                document.getElementById("extra_salary").value = 1.5;
+                document.getElementById("extra_salary").value = 4.8;
             }
         });
 
@@ -227,6 +227,12 @@
         function toggleTopNVisibility() {
             const subType = document.getElementById("sub_type").value;
             document.getElementById("top_n_input").style.display = (subType === "total") ? "block" : "block";
+            
+            // Show/hide late week options
+            const lateWeekOptions = document.getElementById("late_week_options");
+            if (lateWeekOptions) {
+                lateWeekOptions.style.display = (subType === "late_week_sub") ? "block" : "none";
+            }
         }
 
         async function fetchBestTeam() {
@@ -541,18 +547,27 @@
             const topN = parseInt(document.getElementById("top_n").value) || 5;
             const subDay = document.getElementById("sub_day").value || null;
 
+            // Build request body
+            const requestBody = {
+                option: "best_substitutions",
+                sub_type: subType,
+                top_n: topN,
+                untradable_players: selectedUntradablePlayers,
+                must_trade_players: selectedMustTradePlayers,
+                sub_day: subDay,
+                injured_pool_players: selectedInjuredPoolPlayers
+            };
+            
+            // Add late week sub params if applicable
+            if (subType === "late_week_sub") {
+                requestBody.late_week_day = parseInt(document.getElementById("late_week_day").value) || 7;
+                requestBody.subs_remaining = parseInt(document.getElementById("subs_remaining").value) || 2;
+            }
+            
             const response = await fetch("/compute_result", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    option: "best_substitutions",
-                    sub_type: subType,
-                    top_n: topN,
-                    untradable_players: selectedUntradablePlayers,
-                    must_trade_players: selectedMustTradePlayers,
-                    sub_day: subDay,
-                    injured_pool_players: selectedInjuredPoolPlayers
-                })
+                body: JSON.stringify(requestBody)
             });
 
             const data = await response.json();
@@ -571,6 +586,8 @@
                 displayWeeklySubstitutions(currentSubIndex, totalSubstitutions);
             } else if (subType === 'weekly_anyday') {
                 displayWeeklyAnydaySubstitutions(currentSubIndex, totalSubstitutions);
+            } else if (subType === 'late_week_sub') {
+                displayLateWeekSubstitutions(currentSubIndex, totalSubstitutions);
             } else if (subType === 'biweekly') {
                 displayBiweeklySubstitutions(currentSubIndex, totalSubstitutions);
             }
@@ -711,6 +728,8 @@
                 displayWeeklySubstitutions(currentSubIndex, substitutions);
             } else if (currentSubType === "weekly_anyday") {
                 displayWeeklyAnydaySubstitutions(currentSubIndex, substitutions);
+            } else if (currentSubType === "late_week_sub") {
+                displayLateWeekSubstitutions(currentSubIndex, substitutions);
             } else if (currentSubType === "biweekly") {
                 displayBiweeklySubstitutions(currentSubIndex, substitutions);
             }
@@ -866,6 +885,90 @@
                 </div>
                 
                 <button onclick='showWeeklySubstitutions(${index}, ${JSON.stringify(result.weekly_sched)})' style="margin-top: 15px;">View Weekly Schedule</button>
+                <div id="weekly_schedule_${index}" class="weekly-schedule" style="display: none;"></div>
+            `;
+            updateNavButtons();
+        }
+
+        function displayLateWeekSubstitutions(index = 0, substitutions) {
+            const container = document.getElementById("weekly_subs_result");
+
+            if (!substitutions || substitutions.length === 0) {
+                container.innerHTML = "<p>⚠️ No valid substitutions found.</p>";
+                return;
+            }
+
+            const result = substitutions[index];
+            
+            // Format substitution plan with day information
+            let subsHTML = "";
+            if (result.num_subs === 0) {
+                subsHTML = "<p><em>No substitutions recommended</em></p>";
+            } else {
+                subsHTML = "<ul style='list-style: none; padding: 0;'>";
+                result.substitution_plan.subs.forEach((sub, i) => {
+                    const dayNames = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+                    subsHTML += `
+                        <li style="margin: 8px 0; padding: 10px; background: #e8d5ff; border-left: 3px solid #7c4dff; border-radius: 3px;">
+                            <strong>🌙 ${dayNames[sub.day]} (Day ${sub.day}) - Current Week:</strong><br>
+                            <span style="color: #d9534f;">OUT: ${sub.out}</span> ($${sub.out_salary})<br>
+                            <span style="color: #5cb85c;">IN: ${sub.in}</span> ($${sub.in_salary})
+                        </li>
+                    `;
+                });
+                subsHTML += "</ul>";
+            }
+
+            container.innerHTML = `
+                <h3>🌙 Late Week Plan ${index + 1} of ${substitutions.length}</h3>
+                
+                <div style="display: flex; gap: 20px; margin-bottom: 15px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 200px; padding: 15px; background: #e8f5e9; border-radius: 8px;">
+                        <h4 style="margin: 0 0 10px 0;">📊 Total Score</h4>
+                        <p><strong>Weighted Score:</strong> <span style="font-size: 1.3em; color: #2e7d32;">${result.total_score}</span></p>
+                        <p style="font-size: 0.85em; color: #666;">= 0.8 × Week1 + 0.2 × Week2</p>
+                    </div>
+                    <div style="flex: 1; min-width: 200px; padding: 15px; background: #f3e5f5; border-radius: 8px;">
+                        <h4 style="margin: 0 0 10px 0;">📅 Week 1 Breakdown</h4>
+                        <p><strong>Combined:</strong> ${result.week1_score}</p>
+                        <p><strong>Partial Week:</strong> ${result.partial_week_score}</p>
+                        <p><strong>Next Week:</strong> ${result.next_week_score}</p>
+                    </div>
+                    <div style="flex: 1; min-width: 200px; padding: 15px; background: #e3f2fd; border-radius: 8px;">
+                        <h4 style="margin: 0 0 10px 0;">📈 Week 2 Lookahead</h4>
+                        <p><strong>Week 2 Score:</strong> ${result.week2_score}</p>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 20px; margin-bottom: 15px;">
+                    <div style="flex: 1; padding: 15px; background: #fff3e0; border-radius: 8px;">
+                        <h4 style="margin: 0 0 10px 0;">💰 Finances</h4>
+                        <p><strong>New Team Salary:</strong> $${result.new_salary}</p>
+                        <p><strong>Starting Wallet:</strong> $${result.substitution_plan.starting_wallet}</p>
+                        <p><strong>Remaining Wallet:</strong> $${result.substitution_plan.final_wallet}</p>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 15px; padding: 15px; background: #f5f5f5; border-radius: 8px;">
+                    <h4 style="margin: 0 0 10px 0;">🔄 Substitutions (${result.num_subs}) - Made on Day ${result.substitution_plan.sub_day_current_week} of Current Week</h4>
+                    ${subsHTML}
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <p><strong>Players Out:</strong> ${result.substitutions_out.length > 0 ? result.substitutions_out.join(", ") : "None"}</p>
+                    <p><strong>Players In:</strong> ${result.substitutions_in.length > 0 ? result.substitutions_in.join(", ") : "None"}</p>
+                </div>
+                
+                <h4>✅ Final Team ${result.legal ? '(Valid)' : '<span style="color:red;">(INVALID)</span>'}</h4>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px;">
+                    ${result.new_team.map(player => `
+                        <div style="padding: 5px; background: ${player.Pos === 'front' ? '#e3f2fd' : '#fce4ec'}; border-radius: 3px;">
+                            ${player.Player} - ${player.team} ($${player.Salary}) Form: ${player.Form}
+                        </div>
+                    `).join("")}
+                </div>
+                
+                <button onclick='showWeeklySubstitutions(${index}, ${JSON.stringify(result.weekly_sched)})' style="margin-top: 15px;">View Next Week Schedule</button>
                 <div id="weekly_schedule_${index}" class="weekly-schedule" style="display: none;"></div>
             `;
             updateNavButtons();
@@ -1573,8 +1676,33 @@
             <select id="sub_type" onchange="toggleTopNVisibility()">
                 <option value="weekly">Weekly</option>
                 <option value="weekly_anyday">Weekly (Any Day Subs) ✨</option>
+                <option value="late_week_sub">Late Week Sub 🌙</option>
                 <option value="biweekly">Bi-Weekly</option>
             </select>
+            
+            <!-- Late Week Sub Options (hidden by default) -->
+            <div id="late_week_options" style="display: none; margin: 15px 0; padding: 15px; border: 2px solid #7c4dff; border-radius: 8px; background: #f3e5f5;">
+                <h4 style="margin: 0 0 10px 0;">🌙 Late Week Sub Settings</h4>
+                <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">You're at the end of the current week with subs remaining. This will calculate the best subs for the remaining days + next full week.</p>
+                <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                    <div>
+                        <label for="late_week_day">Current Day of Week:</label>
+                        <select id="late_week_day" style="padding: 5px; margin-left: 5px;">
+                            <option value="5">Friday (Day 5)</option>
+                            <option value="6">Saturday (Day 6)</option>
+                            <option value="7" selected>Sunday (Day 7)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="subs_remaining">Subs Remaining:</label>
+                        <select id="subs_remaining" style="padding: 5px; margin-left: 5px;">
+                            <option value="1">1 Sub</option>
+                            <option value="2" selected>2 Subs</option>
+                        </select>
+                    </div>
+                </div>
+                <p style="font-size: 0.85em; color: #888; margin-top: 10px;">Score = 0.8 × (Partial Week + Next Week) + 0.2 × Week After</p>
+            </div>
             <div id="top_n_input">
                 <label for="top_n">Number of Substitutions:</label>
                 <input type="number" id="top_n" name="top_n" min="1" max="10" value="5">
