@@ -330,15 +330,25 @@ class data_loader:
         day_idx = 1
 
         while True:
-            gw, _ = self.get_current_gameweek_day(driver)
+            gw, day = self.get_current_gameweek_day(driver)
             if gw != target_gw:
                 break
 
             teams = self.scrape_teams_for_day(driver)
             week_data[day_idx] = teams
 
-            self.click_next(driver)
-            time.sleep(1.5)
+            # Check if we're at week 25 day 6 (last day of season) or if Next button doesn't exist
+            if gw == 25 and day == 6:
+                print("[INFO] Reached end of season (Week 25 Day 6). Stopping.")
+                break
+            
+            try:
+                self.click_next(driver)
+                time.sleep(1.5)
+            except Exception as e:
+                print(f"[WARN] Could not click Next button: {e}. Assuming end of season reached.")
+                break
+            
             day_idx += 1
 
         return week_data
